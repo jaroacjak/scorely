@@ -1,0 +1,319 @@
+
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#06252c">
+<title>SCORELY – Live športové výsledky</title>
+<style>
+:root{--dark:#06252c;--pink:#e90046;--green:#31df79;--bg:#f4f5f5;--line:#e5e9e9;--muted:#788285}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--dark);font-family:Arial,sans-serif}
+button,input,select{font:inherit}
+button{cursor:pointer}
+header{background:var(--dark);color:white;padding:18px 16px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.logo{font-size:25px;font-weight:900;letter-spacing:1px}
+.logo span{color:var(--green)}
+select{background:transparent;color:white;border:0;font-weight:bold;font-size:19px;max-width:125px}
+select option{color:black}
+.icon{background:none;border:0;color:white;font-size:25px}
+.search{display:none;margin-top:15px}
+.search.show{display:block}
+.search input{width:100%;padding:13px;border:1px solid #45616a;background:#12353c;color:white;border-radius:9px}
+.dates{display:flex;overflow-x:auto;background:white;scrollbar-width:none;border-bottom:1px solid var(--line)}
+.date{min-width:75px;padding:14px 8px;background:white;border:0;border-bottom:4px solid transparent;color:#778}
+.date strong,.date span{display:block}
+.date span{margin-top:5px}
+.date.active{color:var(--pink);border-color:var(--pink)}
+.toolbar{padding:16px 18px;background:white;display:flex;justify-content:space-between;font-size:19px;font-weight:bold}
+.counter{background:var(--pink);color:white;padding:7px 12px;border-radius:10px}
+.page{display:none}.page.active{display:block}
+.section{background:#fff0c9;padding:12px 18px;font-weight:bold;font-size:13px;letter-spacing:1px}
+.section.other{background:#eee}
+.competition{width:100%;display:flex;align-items:center;gap:13px;padding:15px 17px;background:white;border:0;border-bottom:1px solid var(--line);text-align:left;color:var(--dark)}
+.flag{font-size:29px;width:43px}
+.comp-info{flex:1}
+.country{font-size:12px;color:var(--muted);font-weight:bold;margin-bottom:5px}
+.comp-name{font-size:18px;font-weight:bold}
+.star{border:0;background:none;color:#899;font-size:25px}
+.star.active{color:var(--pink)}
+.match-card{background:white;padding:14px 16px;border-bottom:1px solid var(--line)}
+.match-league{font-size:12px;color:var(--muted);font-weight:bold;margin-bottom:12px}
+.teams{display:grid;grid-template-columns:1fr 55px 1fr;align-items:center;gap:5px}
+.team{font-weight:bold;font-size:14px}
+.team:last-child{text-align:right}
+.score{text-align:center;font-size:19px;font-weight:900}
+.match-meta{display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--muted)}
+.live{color:#e90046;font-weight:bold}
+.empty{background:white;text-align:center;padding:40px 18px;color:var(--muted)}
+.bottom{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:10px 3px max(10px,env(safe-area-inset-bottom));z-index:10}
+.bottom button{flex:1;border:0;background:none;color:#788285;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px}
+.bottom button.active{color:var(--pink);font-weight:bold}
+.bottom i{font-style:normal;font-size:25px}
+main{padding-bottom:90px}
+.audio{margin:15px;background:var(--dark);color:white;border-radius:13px;padding:17px}
+.audio-head{display:flex;justify-content:space-between;align-items:center}
+.audio h3{margin:0 0 5px}
+.audio p{color:#b9c9cc;font-size:13px;margin:5px 0 14px}
+.audio button{width:100%;background:var(--green);color:#06252c;border:0;border-radius:9px;padding:13px;font-weight:bold}
+.audio-status{font-size:12px;color:var(--green)}
+.detail-head{background:white;padding:18px;font-size:19px;font-weight:bold}
+.back{border:0;background:none;font-size:22px;margin-right:12px}
+@media(min-width:850px){main{max-width:1050px;margin:auto}.bottom{max-width:650px;left:50%;transform:translateX(-50%);border-radius:14px 14px 0 0}header{padding-left:max(20px,calc((100% - 1050px)/2));padding-right:max(20px,calc((100% - 1050px)/2))}}
+</style>
+</head>
+<body>
+<header>
+ <div class="top">
+  <div class="logo">◈ SCORE<span>LY</span></div>
+  <select id="sport">
+   <option>Hokej</option><option>Futbal</option><option>Tenis</option><option>Basketbal</option><option>Volejbal</option>
+  </select>
+  <button class="icon" onclick="toggleSearch()">⌕</button>
+  <button class="icon" onclick="showPage('favorites')">☆</button>
+ </div>
+ <div class="search" id="searchBox"><input id="search" placeholder="Hľadať tím, súťaž..."></div>
+</header>
+
+<div class="dates" id="dates"></div>
+<main>
+ <div class="toolbar"><span id="title">Všetky zápasy</span><span class="counter" id="counter">0</span></div>
+
+ <section class="page active" id="matchesPage">
+  <div class="section">OBĽÚBENÉ SÚŤAŽE</div>
+  <div id="favCompetitions"></div>
+  <div class="section other">OSTATNÉ SÚŤAŽE</div>
+  <div id="competitions"></div>
+  <div id="matchList"></div>
+ </section>
+
+ <section class="page" id="livePage">
+  <div id="liveList"></div>
+ </section>
+
+ <section class="page" id="favoritesPage">
+  <div id="favoriteList"></div>
+ </section>
+
+ <section class="page" id="detailPage">
+  <div class="detail-head"><button class="back" onclick="showPage('matches')">←</button><span id="detailTitle">Zápas</span></div>
+  <div id="detailContent"></div>
+ </section>
+
+ <section class="page" id="audioPage">
+  <div class="audio">
+   <div class="audio-head"><h3>🎙 SCORELY AUDIO</h3><span class="audio-status" id="audioStatus">OFFLINE</span></div>
+   <p id="audioDescription">Žiadne aktuálne vysielanie.</p>
+   <button id="listenButton" onclick="toggleAudio()">▶ Počúvať komentár</button>
+  </div>
+ </section>
+</main>
+
+<nav class="bottom">
+ <button class="active" data-page="matches" onclick="showPage('matches')"><i>⚽</i>Zápasy</button>
+ <button data-page="live" onclick="showPage('live')"><i>◉</i>LIVE</button>
+ <button data-page="favorites" onclick="showPage('favorites')"><i>☆</i>Obľúbené</button>
+ <button data-page="audio" onclick="showPage('audio')"><i>🎙</i>Audio</button>
+</nav>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig={
+ apiKey:"AIzaSyBrbho9N3nrFwPyj9tNylBNh8fZ2MqBeHY",
+ authDomain:"scorely-fff98.firebaseapp.com",
+ projectId:"scorely-fff98",
+ storageBucket:"scorely-fff98.firebasestorage.app",
+ messagingSenderId:"1094795512385",
+ appId:"1:1094795512385:web:2c4785b37cc7063bac14c0",
+ measurementId:"G-CNFL3RQ8FL"
+};
+
+// Backend musí byť nasadený a nastavený na tejto adrese.
+const API_BASE="https://YOUR-BACKEND-DOMAIN";
+
+firebase.initializeApp(firebaseConfig);
+const db=firebase.firestore();
+
+const competitions=[
+{id:1,country:"EURÓPA",name:"Európsky pohár národov",flag:"🌍",sport:"Hokej"},
+{id:2,country:"SVET",name:"MS - ženy",flag:"🌐",sport:"Hokej"},
+{id:3,country:"USA",name:"NHL",flag:"🇺🇸",sport:"Hokej"},
+{id:4,country:"ÁZIA",name:"Asia Championship",flag:"🌏",sport:"Hokej"},
+{id:5,country:"BELGICKO",name:"Division 1",flag:"🇧🇪",sport:"Hokej"},
+{id:6,country:"BELGICKO",name:"Pohár",flag:"🇧🇪",sport:"Hokej"},
+{id:7,country:"BIELORUSKO",name:"Extraliga",flag:"🇧🇾",sport:"Hokej"},
+{id:8,country:"ČESKO",name:"Extraliga",flag:"🇨🇿",sport:"Hokej"},
+{id:9,country:"FÍNSKO",name:"Liiga",flag:"🇫🇮",sport:"Hokej"},
+{id:10,country:"NEMECKO",name:"DEL",flag:"🇩🇪",sport:"Hokej"},
+{id:11,country:"ANGLICKO",name:"Premier League",flag:"🏴",sport:"Futbal"},
+{id:12,country:"ŠPANIELSKO",name:"La Liga",flag:"🇪🇸",sport:"Futbal"},
+{id:13,country:"NEMECKO",name:"Bundesliga",flag:"🇩🇪",sport:"Futbal"},
+{id:14,country:"TALIANSKO",name:"Serie A",flag:"🇮🇹",sport:"Futbal"},
+{id:15,country:"EURÓPA",name:"Liga majstrov",flag:"🌍",sport:"Futbal"},
+{id:16,country:"SVET",name:"ATP Tour",flag:"🌍",sport:"Tenis"},
+{id:17,country:"SVET",name:"WTA Tour",flag:"🌍",sport:"Tenis"},
+{id:18,country:"USA",name:"NBA",flag:"🇺🇸",sport:"Basketbal"},
+{id:19,country:"EURÓPA",name:"EuroLeague",flag:"🌍",sport:"Basketbal"},
+{id:20,country:"SVET",name:"Liga národov",flag:"🌍",sport:"Volejbal"}
+];
+
+let matches=[];
+let favorites=JSON.parse(localStorage.getItem("scorelyFavorites")||"[]");
+let selectedDate=new Date().toISOString().slice(0,10);
+let selectedCompetition=null;
+let audioRoom=null;
+let audioConnected=false;
+
+function dateString(d){return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-")}
+
+function renderDates(){
+ const box=document.getElementById("dates");
+ box.innerHTML="";
+ const today=new Date();
+ const end=new Date(today.getFullYear(),11,31);
+ for(let d=new Date(today);d<=end;d.setDate(d.getDate()+1)){
+  const date=dateString(d);
+  const b=document.createElement("button");
+  b.className="date"+(date===selectedDate?" active":"");
+  const day=date===dateString(today)?"DNES":date===dateString(new Date(today.getFullYear(),today.getMonth(),today.getDate()+1))?"ZAJTRA":d.toLocaleDateString("sk-SK",{weekday:"short"}).toUpperCase();
+  b.innerHTML=`<strong>${day}</strong><span>${d.toLocaleDateString("sk-SK",{day:"2-digit",month:"2-digit"})}</span>`;
+  b.onclick=()=>{selectedDate=date;renderDates();renderMatches()};
+  box.appendChild(b);
+ }
+ const active=box.querySelector(".active");
+ if(active)active.scrollIntoView({inline:"center",block:"nearest"});
+}
+
+function renderCompetitions(){
+ const sport=document.getElementById("sport").value;
+ const q=document.getElementById("search").value.toLowerCase();
+ const list=competitions.filter(c=>c.sport===sport&&(c.name+" "+c.country).toLowerCase().includes(q));
+ const fav=list.filter(c=>favorites.includes("c"+c.id));
+ const other=list.filter(c=>!favorites.includes("c"+c.id));
+ document.getElementById("favCompetitions").innerHTML=fav.map(competitionHTML).join("");
+ document.getElementById("competitions").innerHTML=other.map(competitionHTML).join("");
+ document.querySelectorAll("[data-comp]").forEach(el=>el.onclick=()=>openCompetition(Number(el.dataset.comp)));
+ document.querySelectorAll("[data-star]").forEach(el=>el.onclick=e=>{e.stopPropagation();toggleFavorite("c"+el.dataset.star)});
+}
+
+function competitionHTML(c){
+ return `<button class="competition" data-comp="${c.id}">
+ <span class="flag">${c.flag}</span><span class="comp-info"><div class="country">${c.country}</div><div class="comp-name">${c.name}</div></span>
+ <span class="star ${favorites.includes("c"+c.id)?"active":""}" data-star="${c.id}">${favorites.includes("c"+c.id)?"★":"☆"}</span></button>`;
+}
+
+function toggleFavorite(id){
+ favorites=favorites.includes(id)?favorites.filter(x=>x!==id):[...favorites,id];
+ localStorage.setItem("scorelyFavorites",JSON.stringify(favorites));
+ renderCompetitions();renderFavorites();renderMatches();
+}
+
+function matchHTML(m){
+ const live=m.status==="LIVE";
+ return `<article class="match-card">
+ <div class="match-league">${escapeHTML(m.competition||"Súťaž")} · ${escapeHTML(m.sport||"")}</div>
+ <div class="teams">
+ <div class="team">${escapeHTML(m.home||"Domáci")}</div>
+ <div class="score">${escapeHTML(String(m.homeScore??"-"))} : ${escapeHTML(String(m.awayScore??"-"))}</div>
+ <div class="team">${escapeHTML(m.away||"Hostia")}</div>
+ </div>
+ <div class="match-meta"><span class="${live?"live":""}">${live?"● LIVE":escapeHTML(m.status||"Naplánovaný")}</span><button onclick="openMatch('${m.id}')">Detail zápasu →</button></div>
+ </article>`;
+}
+
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+
+function renderMatches(){
+ const sport=document.getElementById("sport").value;
+ const q=document.getElementById("search").value.toLowerCase();
+ const filtered=matches.filter(m=>m.sport===sport&&m.date===selectedDate&&(`${m.home} ${m.away} ${m.competition}`).toLowerCase().includes(q));
+ const ids=competitions.filter(c=>c.sport===sport).map(c=>c.name);
+ const visible=matches.filter(m=>m.sport===sport&&m.date===selectedDate);
+ document.getElementById("matchList").innerHTML=filtered.length?filtered.map(matchHTML).join():"";
+ document.getElementById("counter").textContent=filtered.length;
+ document.getElementById("liveList").innerHTML=matches.filter(m=>m.status==="LIVE"&&m.sport===sport).map(matchHTML).join("")||'<div class="empty">Momentálne nie sú žiadne LIVE zápasy.</div>';
+ renderCompetitions();
+}
+
+function renderFavorites(){
+ const favMatches=matches.filter(m=>favorites.includes("m"+m.id));
+ const favComps=competitions.filter(c=>favorites.includes("c"+c.id));
+ document.getElementById("favoriteList").innerHTML=
+ favComps.map(competitionHTML).join("")+
+ (favMatches.map(matchHTML).join("")||"")+
+ (!favComps.length&&!favMatches.length?'<div class="empty">☆<h3>Žiadne obľúbené</h3>Pridaj si zápas alebo súťaž hviezdičkou.</div>':"");
+}
+
+function openCompetition(id){
+ const c=competitions.find(x=>x.id===id);
+ if(!c)return;
+ selectedCompetition=c;
+ document.getElementById("detailTitle").textContent=c.name;
+ document.getElementById("detailContent").innerHTML=matches.filter(m=>m.competition===c.name).map(matchHTML).join("")||'<div class="empty">Zatiaľ bez zápasov.</div>';
+ showPage("detail");
+}
+
+function openMatch(id){
+ const m=matches.find(x=>x.id===id);
+ if(!m)return;
+ document.getElementById("detailTitle").textContent=m.home+" – "+m.away;
+ document.getElementById("detailContent").innerHTML=matchHTML(m)+`<div class="audio"><h3>🎙 Audio komentár</h3><p>Počúvaj živý komentár k tomuto zápasu.</p><button onclick="showPage('audio')">Počúvať komentár</button></div>`;
+ showPage("detail");
+}
+
+function showPage(page){
+ document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));
+ document.getElementById(page+"Page").classList.add("active");
+ document.querySelectorAll(".bottom button").forEach(x=>x.classList.toggle("active",x.dataset.page===page));
+ const titles={matches:"Všetky zápasy",live:"LIVE zápasy",favorites:"Obľúbené",audio:"Audio",detail:"Detail zápasu"};
+ document.getElementById("title").textContent=titles[page];
+ if(page==="favorites")renderFavorites();
+}
+
+function toggleSearch(){document.getElementById("searchBox").classList.toggle("show");document.getElementById("search").focus()}
+
+document.getElementById("sport").onchange=()=>{renderCompetitions();renderMatches()};
+document.getElementById("search").oninput=()=>{renderCompetitions();renderMatches()};
+
+// FIRESTORE – ŽIVÉ AKTUALIZÁCIE
+
+db.collection("matches").onSnapshot(snapshot=>{
+ matches=snapshot.docs.map(d=>({id:d.id,...d.data()}));
+ renderMatches();renderFavorites();
+},error=>console.error("Firestore matches:",error));
+
+db.collection("settings").doc("audio").onSnapshot(doc=>{
+ const a=doc.exists?doc.data():{};
+ const live=a.status==="live";
+ document.getElementById("audioStatus").textContent=live?"● LIVE":"OFFLINE";
+ document.getElementById("audioDescription").textContent=live?(a.mode==="music"?"Prebieha hudobná prestávka.":"Prebieha živý komentár."):"Žiadne aktuálne vysielanie.";
+ document.getElementById("listenButton").textContent=audioConnected?"Odpojiť audio":live?"▶ Počúvať komentár":"Vysielanie je offline";
+});
+
+async function toggleAudio(){
+ if(audioConnected){
+  if(audioRoom)await audioRoom.disconnect();
+  audioRoom=null;audioConnected=false;
+  document.getElementById("listenButton").textContent="▶ Počúvať komentár";
+  return;
+ }
+ try{
+  const response=await fetch(API_BASE+"/api/livekit/token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({room:"scorely-live",role:"listener"})});
+  if(!response.ok)throw new Error("Audio server nie je dostupný.");
+  const data=await response.json();
+  const {Room,RoomEvent}=await import("https://cdn.jsdelivr.net/npm/livekit-client@2.9.0/+esm");
+  audioRoom=new Room();
+  audioRoom.on(RoomEvent.TrackSubscribed,(track)=>track.attach());
+  await audioRoom.connect(data.url,data.token);
+  audioConnected=true;
+  document.getElementById("listenButton").textContent="Odpojiť audio";
+ }catch(e){alert("Audio zatiaľ nie je dostupné: "+e.message)}
+}
+
+renderDates();renderCompetitions();renderFavorites();
+</script>
+</body>
+</html>
