@@ -1,0 +1,481 @@
+
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#08151c">
+<title>SCORELY – Admin</title>
+<style>
+:root{--bg:#08151c;--panel:#111f29;--line:#263743;--green:#31e879;--text:#f3f7f8;--muted:#9aabb4;--red:#ed365b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+header{padding:20px;background:#0d2029;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:25px;font-weight:900}.logo span{color:var(--green)}
+header small{color:var(--muted)}
+main{max-width:1100px;margin:auto;padding:20px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:19px;margin-bottom:18px}
+h2{font-size:19px;margin:0 0 17px}
+h3{font-size:15px;margin:0 0 13px;color:var(--green)}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 6px}
+input,select{width:100%;padding:12px;background:#0b1820;border:1px solid var(--line);border-radius:8px;color:white;outline:none}
+button{cursor:pointer}
+.btn{border:0;border-radius:8px;padding:12px 16px;background:var(--green);color:#062016;font-weight:bold}
+.btn.secondary{background:#263b47;color:white}
+.btn.danger{background:var(--red);color:white}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:16px}
+.match{padding:14px;border:1px solid var(--line);border-radius:9px;margin-top:10px}
+.match-top{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.muted{color:var(--muted);font-size:12px}
+.status{color:var(--green);font-weight:bold}
+.audio-status{padding:12px;background:#0a1a21;border-radius:8px;margin:12px 0;color:var(--green)}
+.hidden{display:none!important}
+hr{border:0;border-top:1px solid var(--line);margin:17px 0}
+.notice{color:#ffcc80;font-size:13px;line-height:1.5}
+@media(max-width:600px){main{padding:12px}.grid{grid-template-columns:1fr}.panel{padding:15px}}
+</style>
+</head>
+<body>
+
+<header>
+ <div class="logo">◈ SCORE<span>LY</span> <small>ADMIN</small></div>
+ <span class="muted" id="connection">Kontrola pripojenia...</span>
+</header>
+
+<main>
+
+<section class="panel" id="accessPanel">
+ <h2>🔐 Administrátorský prístup</h2>
+ <p class="muted">Zadaj serverový prístupový kľúč.</p>
+ <label>Prístupový kľúč</label>
+ <input id="accessKey" type="password" autocomplete="off" placeholder="Serverový kľúč">
+ <div class="actions">
+  <button class="btn" onclick="authorize()">Overiť prístup</button>
+ </div>
+ <p class="notice">Kľúč sa overuje na serveri. Nevkladaj ho do zdrojového kódu.</p>
+</section>
+
+<div id="adminPanel" class="hidden">
+
+<section class="panel">
+ <h2>📊 Prehľad SCORELY</h2>
+ <div class="grid">
+  <div><div class="muted">Počet zápasov</div><h2 id="matchCount">0</h2></div>
+  <div><div class="muted">Audio stav</div><h2 id="audioOverview">OFFLINE</h2></div>
+ </div>
+ <button class="btn secondary" onclick="loadMatches()">↻ Obnoviť údaje</button>
+</section>
+
+<section class="panel">
+ <h2>⚽ Správa zápasov</h2>
+ <input type="hidden" id="matchId">
+
+ <div class="grid">
+  <div>
+   <label>Šport</label>
+   <select id="sport">
+    <option>Hokej</option><option>Futbal</option>
+    <option>Tenis</option><option>Basketbal</option><option>Volejbal</option>
+   </select>
+  </div>
+  <div>
+   <label>Súťaž</label>
+   <input id="competition" placeholder="NHL, Premier League...">
+  </div>
+ </div>
+
+ <div class="grid">
+  <div><label>Domáci tím</label><input id="home" placeholder="Domáci"></div>
+  <div><label>Hostia</label><input id="away" placeholder="Hostia"></div>
+ </div>
+
+ <div class="grid">
+  <div><label>Dátum</label><input id="date" type="date"></div>
+  <div><label>Čas zápasu</label><input id="time" type="time"></div>
+ </div>
+
+ <div class="grid">
+  <div><label>Skóre domácich</label><input id="homeScore" type="number" min="0" value="0"></div>
+  <div><label>Skóre hostí</label><input id="awayScore" type="number" min="0" value="0"></div>
+ </div>
+
+ <label>Stav zápasu</label>
+ <select id="status">
+  <option value="SCHEDULED">Naplánovaný</option>
+  <option value="LIVE">LIVE</option>
+  <option value="PAUSED">Prestávka</option>
+  <option value="FINISHED">Ukončený</option>
+  <option value="CANCELLED">Zrušený</option>
+ </select>
+
+ <div class="actions">
+  <button class="btn" onclick="saveMatch()">＋ Uložiť zápas</button>
+  <button class="btn secondary" onclick="resetForm()">Vymazať formulár</button>
+ </div>
+ <p class="muted" id="matchMessage"></p>
+</section>
+
+<section class="panel">
+ <h2>📋 Všetky zápasy</h2>
+ <div id="matchList"><p class="muted">Načítavam...</p></div>
+</section>
+
+<section class="panel">
+ <h2>🎙 SCORELY AUDIO – Vysielanie</h2>
+
+ <div class="audio-status" id="audioStatus">Vysielanie offline</div>
+
+ <label>Výber zápasu pre komentár</label>
+ <select id="audioMatch">
+  <option value="">Vyber zápas</option>
+ </select>
+
+ <div class="grid">
+  <div>
+   <label>Naplánovaný začiatok</label>
+   <input type="datetime-local" id="audioStart">
+  </div>
+  <div>
+   <label>Dĺžka komentára (minúty)</label>
+   <input type="number" id="audioDuration" value="90" min="1">
+  </div>
+ </div>
+
+ <div class="grid">
+  <div>
+   <label>Začiatok prestávky</label>
+   <input type="datetime-local" id="breakStart">
+  </div>
+  <div>
+   <label>Koniec prestávky</label>
+   <input type="datetime-local" id="breakEnd">
+  </div>
+ </div>
+
+ <label>Hudobný súbor – licencovaná hudba</label>
+ <input type="file" id="musicFile" accept="audio/*">
+ <p class="muted">Hudobný súbor sa prehráva cez audio vysielanie. Nepoužívaj hudbu bez potrebných práv.</p>
+
+ <div class="actions">
+  <button class="btn" onclick="scheduleAudio()">⏰ Naplánovať</button>
+  <button class="btn secondary" onclick="stopSchedule()">Zrušiť plán</button>
+ </div>
+
+ <hr>
+ <h3>OVLÁDANIE MIKROFÓNU</h3>
+ <div class="actions">
+  <button class="btn" id="micButton" onclick="toggleMic()">🎙 Zapnúť mikrofón</button>
+  <button class="btn secondary" onclick="muteMic()">🔇 Stíšiť</button>
+ </div>
+
+ <h3 style="margin-top:25px">HUDOBNÁ PRESTÁVKA</h3>
+ <div class="actions">
+  <button class="btn" onclick="playMusic()">▶ Spustiť hudbu</button>
+  <button class="btn danger" onclick="stopMusic()">■ Zastaviť hudbu</button>
+ </div>
+
+ <div class="actions">
+  <button class="btn secondary" onclick="setAudioMode('commentary')">🎙 Režim komentár</button>
+  <button class="btn secondary" onclick="setAudioMode('music')">🎵 Režim hudba</button>
+  <button class="btn danger" onclick="stopBroadcast()">Ukončiť vysielanie</button>
+ </div>
+
+ <p class="muted" id="audioMessage"></p>
+ <p class="notice">Automatické spúšťanie musí zabezpečiť server. Administrátor musí povoliť prístup k mikrofónu. Naplánované vysielanie sa spustí len vtedy, keď je dostupný zdroj zvuku a vysielací server.</p>
+</section>
+
+</div>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+const firebaseConfig={
+ apiKey:"AIzaSyBrbho9N3nrFwPyj9tNylBNh8fZ2MqBeHY",
+ authDomain:"scorely-fff98.firebaseapp.com",
+ projectId:"scorely-fff98",
+ storageBucket:"scorely-fff98.firebasestorage.app",
+ messagingSenderId:"1094795512385",
+ appId:"1:1094795512385:web:2c4785b37cc7063bac14c0",
+ measurementId:"G-CNFL3RQ8FL"
+};
+
+const API_BASE="https://YOUR-BACKEND-DOMAIN";
+
+firebase.initializeApp(firebaseConfig);
+const db=firebase.firestore();
+
+let adminKey="";
+let matches=[];
+let room=null;
+let micTrack=null;
+let musicElement=null;
+let musicTrack=null;
+let currentMode="commentary";
+
+async function api(path,method="GET",body){
+ const response=await fetch(API_BASE+path,{
+  method,
+  headers:{
+   "Content-Type":"application/json",
+   "X-Admin-Key":adminKey
+  },
+  body:body===undefined?undefined:JSON.stringify(body)
+ });
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw new Error(data.error||"Serverová chyba "+response.status);
+ return data;
+}
+
+async function authorize(){
+ const key=document.getElementById("accessKey").value.trim();
+ if(!key)return alert("Zadaj prístupový kľúč.");
+
+ try{
+  const response=await fetch(API_BASE+"/api/admin/verify",{
+   method:"POST",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({key})
+  });
+  if(!response.ok)throw new Error("Nesprávny kľúč alebo nedostupný server.");
+
+  adminKey=key;
+  document.getElementById("adminPanel").classList.remove("hidden");
+  document.getElementById("accessPanel").classList.add("hidden");
+  document.getElementById("connection").textContent="● ADMIN PRIPOJENÝ";
+  await loadMatches();
+  await loadAudioStatus();
+ }catch(e){alert(e.message)}
+}
+
+async function loadMatches(){
+ try{
+  const snapshot=await db.collection("matches").get();
+  matches=snapshot.docs.map(d=>({id:d.id,...d.data()}));
+  renderMatches();
+  document.getElementById("matchCount").textContent=matches.length;
+  document.getElementById("connection").textContent="● FIREBASE PRIPOJENÝ";
+ }catch(e){
+  alert("Nepodarilo sa načítať zápasy: "+e.message);
+ }
+}
+
+function renderMatches(){
+ const list=document.getElementById("matchList");
+ const select=document.getElementById("audioMatch");
+ list.innerHTML="";
+ select.innerHTML='<option value="">Vyber zápas</option>';
+
+ matches.forEach(m=>{
+  const option=document.createElement("option");
+  option.value=m.id;
+  option.textContent=m.home+" – "+m.away;
+  select.appendChild(option);
+
+  const div=document.createElement("div");
+  div.className="match";
+  const title=document.createElement("strong");
+  title.textContent=m.home+" "+m.homeScore+" : "+m.awayScore+" "+m.away;
+  const meta=document.createElement("div");
+  meta.className="muted";
+  meta.textContent=m.competition+" · "+m.date+" · "+m.status;
+  const actions=document.createElement("div");
+  actions.className="actions";
+
+  const edit=document.createElement("button");
+  edit.className="btn secondary";
+  edit.textContent="Upraviť";
+  edit.onclick=()=>editMatch(m.id);
+
+  const del=document.createElement("button");
+  del.className="btn danger";
+  del.textContent="Vymazať";
+  del.onclick=()=>deleteMatch(m.id);
+
+  actions.append(edit,del);
+  div.append(title,meta,actions);
+  list.appendChild(div);
+ });
+ if(!matches.length)list.textContent="Zatiaľ žiadne zápasy.";
+}
+
+function getMatchForm(){
+ const fields=["sport","competition","home","away","date","time","status"];
+ const m={};
+ fields.forEach(k=>m[k]=document.getElementById(k).value.trim());
+ m.homeScore=Number(document.getElementById("homeScore").value);
+ m.awayScore=Number(document.getElementById("awayScore").value);
+ if(!m.home||!m.away||!m.competition||!m.date||!m.time)
+  throw new Error("Vyplň všetky povinné polia.");
+ return m;
+}
+
+async function saveMatch(){
+ try{
+  const data=getMatchForm();
+  const id=document.getElementById("matchId").value;
+  if(id)await api("/api/admin/matches/"+encodeURIComponent(id),"PUT",data);
+  else await api("/api/admin/matches","POST",data);
+  document.getElementById("matchMessage").textContent="Zápas bol uložený.";
+  resetForm();
+  await loadMatches();
+ }catch(e){alert(e.message)}
+}
+
+function editMatch(id){
+ const m=matches.find(x=>x.id===id);
+ if(!m)return;
+ document.getElementById("matchId").value=m.id;
+ ["sport","competition","home","away","date","time","status","homeScore","awayScore"].forEach(k=>{
+  document.getElementById(k).value=m[k]??"";
+ });
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+
+async function deleteMatch(id){
+ if(!confirm("Naozaj vymazať tento zápas?"))return;
+ try{
+  await api("/api/admin/matches/"+encodeURIComponent(id),"DELETE");
+  await loadMatches();
+ }catch(e){alert(e.message)}
+}
+
+function resetForm(){
+ document.getElementById("matchId").value="";
+ ["competition","home","away","date","time"].forEach(k=>document.getElementById(k).value="");
+ document.getElementById("homeScore").value=0;
+ document.getElementById("awayScore").value=0;
+ document.getElementById("status").value="SCHEDULED";
+}
+
+async function scheduleAudio(){
+ try{
+  const matchId=document.getElementById("audioMatch").value;
+  const start=document.getElementById("audioStart").value;
+  const duration=Number(document.getElementById("audioDuration").value);
+  const breakStart=document.getElementById("breakStart").value;
+  const breakEnd=document.getElementById("breakEnd").value;
+
+  if(!matchId||!start||!duration)throw new Error("Vyber zápas, začiatok a dĺžku.");
+  if(new Date(start)<=new Date())throw new Error("Začiatok musí byť v budúcnosti.");
+  if(breakStart&&breakEnd&&new Date(breakEnd)<=new Date(breakStart))throw new Error("Koniec prestávky musí byť po jej začiatku.");
+
+  await api("/api/admin/audio/schedule","POST",{
+   matchId,startAt:new Date(start).toISOString(),durationMinutes:duration,
+   breakStart:breakStart?new Date(breakStart).toISOString():null,
+   breakEnd:breakEnd?new Date(breakEnd).toISOString():null
+  });
+  document.getElementById("audioMessage").textContent="Audio komentár je naplánovaný.";
+ }catch(e){alert(e.message)}
+}
+
+async function stopSchedule(){
+ try{
+  await api("/api/admin/audio/schedule","DELETE");
+  document.getElementById("audioMessage").textContent="Plán bol zrušený.";
+ }catch(e){alert(e.message)}
+}
+
+async function connectBroadcaster(){
+ if(room)return;
+ const data=await api("/api/livekit/token","POST",{role:"broadcaster",room:"scorely-live"});
+ const {Room,RoomEvent}=await import("https://cdn.jsdelivr.net/npm/livekit-client@2.9.0/+esm");
+ room=new Room();
+ room.on(RoomEvent.Disconnected,()=>{room=null;});
+ await room.connect(data.url,data.token);
+}
+
+async function toggleMic(){
+ try{
+  await connectBroadcaster();
+  if(micTrack){
+   micTrack.stop();
+   micTrack=null;
+   document.getElementById("micButton").textContent="🎙 Zapnúť mikrofón";
+   return;
+  }
+  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  micTrack=stream.getAudioTracks()[0];
+  await room.localParticipant.publishTrack(micTrack);
+  document.getElementById("micButton").textContent="🔇 Vypnúť mikrofón";
+  await setAudioMode("commentary");
+ }catch(e){alert("Mikrofón: "+e.message)}
+}
+
+async function muteMic(){
+ if(!micTrack)return;
+ micTrack.enabled=false;
+ document.getElementById("audioMessage").textContent="Mikrofón je stíšený.";
+}
+
+async function playMusic(){
+ try{
+  const file=document.getElementById("musicFile").files[0];
+  if(!file)throw new Error("Vyber hudobný súbor.");
+  await connectBroadcaster();
+
+  await stopMusic();
+
+  musicElement=new Audio(URL.createObjectURL(file));
+  musicElement.loop=true;
+  musicElement.crossOrigin="anonymous";
+  await musicElement.play();
+
+  const stream=musicElement.captureStream();
+  musicTrack=stream.getAudioTracks()[0];
+  await room.localParticipant.publishTrack(musicTrack);
+  if(micTrack)micTrack.enabled=false;
+  await setAudioMode("music");
+ }catch(e){alert("Hudba: "+e.message)}
+}
+
+async function stopMusic(){
+ if(musicTrack){
+  if(room)await room.localParticipant.unpublishTrack(musicTrack);
+  musicTrack.stop();
+  musicTrack=null;
+ }
+ if(musicElement){
+  musicElement.pause();
+  musicElement=null;
+ }
+}
+
+async function setAudioMode(mode){
+ currentMode=mode;
+ await api("/api/admin/audio/mode","POST",{mode});
+ document.getElementById("audioMessage").textContent=
+ mode==="music"?"Hudobná prestávka.":"Režim komentár.";
+}
+
+async function stopBroadcast(){
+ try{
+  await stopMusic();
+  if(micTrack){
+   if(room)await room.localParticipant.unpublishTrack(micTrack);
+   micTrack.stop();
+   micTrack=null;
+  }
+  if(room){await room.disconnect();room=null;}
+  document.getElementById("micButton").textContent="🎙 Zapnúť mikrofón";
+  await api("/api/admin/audio/stop","POST",{});
+  await loadAudioStatus();
+ }catch(e){alert(e.message)}
+}
+
+async function loadAudioStatus(){
+ try{
+  const data=await api("/api/admin/audio/status");
+  document.getElementById("audioOverview").textContent=data.status||"OFFLINE";
+  document.getElementById("audioStatus").textContent=data.status||"OFFLINE";
+ }catch(e){
+  document.getElementById("audioStatus").textContent="Server nedostupný";
+ }
+}
+</script>
+</body>
+  </html>
+  
