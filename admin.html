@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scorly Admin - Štúdio & Správa Zápasov</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --bg-body: #0d0f12;
+            --bg-card: #1c2127;
+            --accent-red: #e00000;
+            --accent-live: #00e676;
+            --text-main: #f0f2f5;
+            --text-muted: #8c9ba5;
+            --border-color: #2a313a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body { background-color: var(--bg-body); color: var(--text-main); padding: 20px; }
+        
+        .admin-box { max-width: 900px; margin: 0 auto; }
+        .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+        h2 { font-size: 18px; margin-bottom: 15px; color: #fff; display: flex; align-items: center; gap: 8px; }
+
+        #login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-body); z-index: 1000;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .login-card {
+            background: var(--bg-card); padding: 30px; border-radius: 8px;
+            border: 1px solid var(--border-color); width: 320px; text-align: center;
+        }
+
+        input, button {
+            width: 100%; padding: 10px; margin-top: 10px;
+            border-radius: 4px; border: 1px solid var(--border-color);
+            background: #111418; color: #fff;
+        }
+
+        button { background: var(--accent-red); border: none; font-weight: bold; cursor: pointer; }
+        button:hover { opacity: 0.9; }
+
+        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+        .btn-live { background: var(--accent-live); color: #000; }
+        .btn-warning { background: #ffb300; color: #000; }
+
+        .match-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px; border-bottom: 1px solid var(--border-color);
+        }
+        .score-ctrls button { width: auto; padding: 4px 10px; margin: 0 2px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-overlay">
+        <div class="login-card">
+            <h2 style="justify-content: center;"><i class="fa-solid fa-lock"></i> Scorly Admin</h2>
+            <input type="password" id="admin-pass" placeholder="Heslo (admin123)">
+            <button onclick="login()">Prihlásiť sa</button>
+            <div id="login-error" style="color:red; font-size:12px; margin-top:8px;"></div>
+        </div>
+    </div>
+
+    <div class="admin-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h1>Administrátorské Štúdio</h1>
+            <a href="index.html" style="color:var(--text-muted); text-decoration:none;"><i class="fa-solid fa-eye"></i> Späť na web</a>
+        </div>
+
+        <div class="card">
+            <h2><i class="fa-solid fa-microphone"></i> Audio Komentár & Reklamy</h2>
+            <div class="controls-grid">
+                <button onclick="setBroadcastMode('mic')" class="btn-live"><i class="fa-solid fa-microphone"></i> Zapnúť Mikrofón</button>
+                <button onclick="setBroadcastMode('music')" class="btn-warning"><i class="fa-solid fa-music"></i> Pustiť Reklamu / Hudbu</button>
+                <button onclick="setBroadcastMode('off')" style="background:#444;"><i class="fa-solid fa-power-off"></i> Vypnúť Vysielanie</button>
+            </div>
+            <div style="margin-top:15px;">
+                <label style="font-size:12px; color:var(--text-muted);">Zvukové efekty:</label>
+                <div style="display:flex; gap:10px; margin-top:5px;">
+                    <button onclick="triggerSFX('goal')" style="background:#222;"><i class="fa-solid fa-bullhorn"></i> Klaksón (Gól)</button>
+                    <button onclick="triggerSFX('whistle')" style="background:#222;"><i class="fa-solid fa-volume-high"></i> Píšťalka</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2><i class="fa-solid fa-plus"></i> Pridať Nový Zápas</h2>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <input type="text" id="home-name" placeholder="Domáci tím">
+                <input type="text" id="away-name" placeholder="Hostia tím">
+            </div>
+            <button onclick="createMatch()" style="margin-top:10px;"><i class="fa-solid fa-plus"></i> Vytvoriť Zápas</button>
+        </div>
+
+        <div class="card">
+            <h2><i class="fa-solid fa-list-check"></i> Správa Zápasov</h2>
+            <div id="admin-matches-list">
+                <div style="color:var(--text-muted);">Načítavam zápasy...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBrbho9N3nrFwPyj9tNylBNh8fZ2MqBeHY",
+            authDomain: "scorely-fff98.firebaseapp.com",
+            databaseURL: "https://scorely-fff98-default-rtdb.firebaseio.com",
+            projectId: "scorely-fff98",
+            storageBucket: "scorely-fff98.firebasestorage.app",
+            messagingSenderId: "1094795512385",
+            appId: "1:1094795512385:web:2c4785b37cc7063bac14c0",
+            measurementId: "G-CNFL3RQ8FL"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        function login() {
+            const pass = document.getElementById('admin-pass').value;
+            if (pass === 'admin123') {
+                document.getElementById('login-overlay').style.display = 'none';
+            } else {
+                document.getElementById('login-error').innerText = "Nesprávne heslo!";
+            }
+        }
+
+        function setBroadcastMode(mode) {
+            db.ref('broadcast').update({
+                mode: mode,
+                updatedAt: Date.now()
+            });
+        }
+
+        function triggerSFX(type) {
+            db.ref('broadcast/sfx').set({
+                type: type,
+                time: Date.now()
+            });
+        }
+
+        function createMatch() {
+            const home = document.getElementById('home-name').value;
+            const away = document.getElementById('away-name').value;
+            if (!home || !away) return;
+
+            const newRef = db.ref('matches').push();
+            newRef.set({
+                teamHome: home,
+                teamAway: away,
+                scoreHome: 0,
+                scoreAway: 0,
+                status: 'LIVE',
+                time: '1'
+            });
+
+            document.getElementById('home-name').value = '';
+            document.getElementById('away-name').value = '';
+        }
+
+        db.ref('matches').on('value', (snapshot) => {
+            const matches = snapshot.val() || {};
+            const container = document.getElementById('admin-matches-list');
+            container.innerHTML = '';
+
+            for (let id in matches) {
+                const m = matches[id];
+                container.innerHTML += `
+                    <div class="match-item">
+                        <div>
+                            <strong>${m.teamHome} vs ${m.teamAway}</strong>
+                            <div style="font-size:12px; color:var(--text-muted);">${m.status} | Čas: ${m.time}'</div>
+                        </div>
+                        <div class="score-ctrls">
+                            <button onclick="updateScore('${id}', 'home', 1)">+1 D</button>
+                            <span>${m.scoreHome} : ${m.scoreAway}</span>
+                            <button onclick="updateScore('${id}', 'away', 1)">+1 H</button>
+                            <button onclick="toggleMatchStatus('${id}', '${m.status}')" style="background:#555;">Stav</button>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        function updateScore(id, team, val) {
+            const ref = db.ref(`matches/${id}`);
+            ref.once('value', (snap) => {
+                const data = snap.val();
+                if (team === 'home') ref.update({ scoreHome: Math.max(0, data.scoreHome + val) });
+                if (team === 'away') ref.update({ scoreAway: Math.max(0, data.scoreAway + val) });
+            });
+        }
+
+        function toggleMatchStatus(id, currentStatus) {
+            const nextStatus = currentStatus === 'LIVE' ? 'KONIEC' : 'LIVE';
+            db.ref(`matches/${id}`).update({ status: nextStatus });
+        }
+    </script>
+</body>
+</html>
