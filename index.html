@@ -1,1348 +1,322 @@
 <!DOCTYPE html>
-<html lang="sk" class="dark">
+<html lang="sk">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Scorly - Flashscore Štýl & Realtime Audio Komentár</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              red: '#e00000',
-              darkBg: '#121215',
-              card: '#18181d',
-              header: '#0f0f12',
-              green: '#00e676',
-              accent: '#ff2d55'
-            }
-          }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scorly - Živé Výsledky & Audio Komentár</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --bg-body: #111418;
+            --bg-card: #1c2127;
+            --bg-header: #0d0f12;
+            --accent-red: #e00000;
+            --accent-live: #00e676;
+            --text-main: #f0f2f5;
+            --text-muted: #8c9ba5;
+            --border-color: #2a313a;
         }
-      }
-    }
-  </script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap');
-    body {
-      font-family: 'Roboto', sans-serif;
-      background-color: #121215;
-      color: #e0e0e8;
-    }
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 6px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: #18181d;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #2a2a35;
-      border-radius: 3px;
-    }
-    .pulse-live {
-      animation: pulse 1.4s infinite;
-    }
-    @keyframes pulse {
-      0% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.96); }
-      100% { opacity: 1; transform: scale(1); }
-    }
-    .mic-wave-bar {
-      animation: micWave 1.2s infinite ease-in-out;
-    }
-    @keyframes micWave {
-      0%, 100% { height: 6px; }
-      50% { height: 26px; }
-    }
-  </style>
 
-  <!-- Firebase Modular SDKs -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getDatabase, ref, set, update, onValue, push, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
 
-    // Specified Firebase Configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyBrbho9N3nrFwPyj9tNylBNh8fZ2MqBeHY",
-      authDomain: "scorely-fff98.firebaseapp.com",
-      databaseURL: "https://scorely-fff98-default-rtdb.firebaseio.com",
-      projectId: "scorely-fff98",
-      storageBucket: "scorely-fff98.firebasestorage.app",
-      messagingSenderId: "1094795512385",
-      appId: "1:1094795512385:web:2c4785b37cc7063bac14c0",
-      measurementId: "G-CNFL3RQ8FL"
-    };
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            padding-bottom: 80px;
+        }
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getDatabase(app);
+        header {
+            background-color: var(--bg-header);
+            border-bottom: 2px solid var(--accent-red);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
 
-    // Make Firebase services accessible globally for UI scripts
-    window.fbAuth = auth;
-    window.fbDb = db;
-    window.fbDbRef = ref;
-    window.fbDbSet = set;
-    window.fbDbUpdate = update;
-    window.fbDbOnValue = onValue;
-    window.fbDbPush = push;
-    window.fbDbRemove = remove;
-    window.fbSignIn = signInWithEmailAndPassword;
-    window.fbSignOut = signOut;
-    window.fbOnAuthStateChanged = onAuthStateChanged;
+        .logo {
+            font-size: 24px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
 
-    // Trigger app init once Firebase modules load
-    window.dispatchEvent(new Event('firebase-ready'));
-  </script>
+        .logo span { color: var(--accent-red); }
+
+        .admin-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .admin-link:hover {
+            color: #fff;
+            border-color: var(--accent-red);
+        }
+
+        .nav-categories {
+            background: var(--bg-card);
+            display: flex;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 10px;
+        }
+
+        .cat-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            border-bottom: 3px solid transparent;
+        }
+
+        .cat-btn.active {
+            color: #fff;
+            border-bottom-color: var(--accent-red);
+        }
+
+        .live-player-bar {
+            background: linear-gradient(90deg, #1f1214 0%, #161a22 100%);
+            border: 1px solid var(--accent-red);
+            margin: 15px auto;
+            max-width: 800px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .player-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            background-color: var(--accent-live);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-live);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+
+        .league-group {
+            background: var(--bg-card);
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+
+        .league-header {
+            background: rgba(255,255,255,0.03);
+            padding: 10px 15px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .match-row {
+            display: grid;
+            grid-template-columns: 70px 1fr 60px;
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+            align-items: center;
+        }
+
+        .match-row:last-child { border-bottom: none; }
+
+        .match-status {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+
+        .match-status.live {
+            color: var(--accent-live);
+        }
+
+        .teams {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .team {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .score {
+            font-size: 16px;
+            font-weight: 800;
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+    </style>
 </head>
-<body class="bg-[#121215] min-h-screen flex flex-col custom-scrollbar">
+<body>
 
-  <!-- Top Navigation Bar -->
-  <header class="bg-[#0f0f12] border-b border-gray-800/80 sticky top-0 z-40 shadow-xl">
-    <div class="max-w-7xl mx-auto px-3 sm:px-4 h-16 flex items-center justify-between">
-      
-      <!-- Brand Logo -->
-      <div class="flex items-center space-x-3 cursor-pointer" onclick="switchView('public')">
-        <div class="bg-brand-red text-white px-2.5 py-1 rounded-lg font-black text-xl tracking-wider uppercase flex items-center shadow-md shadow-brand-red/20">
-          <i class="fa-solid fa-play text-sm mr-1.5"></i> SCORLY
-        </div>
-        <div class="flex items-center space-x-1.5 text-xs text-gray-400 font-mono">
-          <span class="w-2 h-2 rounded-full bg-brand-green pulse-live"></span>
-          <span class="hidden sm:inline">REALTIME DB</span>
-        </div>
-      </div>
+    <header>
+        <div class="logo"><i class="fa-solid fa-bolt"></i> SCOR<span>LY</span></div>
+        <a href="admin.html" class="admin-link"><i class="fa-solid fa-lock"></i> Admin Rozhranie</a>
+    </header>
 
-      <!-- Navigation & Mode Selector -->
-      <div class="flex items-center space-x-2">
-        <button onclick="switchView('public')" id="btn-tab-public" class="px-4 py-2 text-xs sm:text-sm font-bold rounded-lg bg-brand-red text-white transition-all shadow-md">
-          <i class="fa-solid fa-trophy mr-1.5"></i> Zápasy & Výsledky
-        </button>
-        <button onclick="switchView('admin')" id="btn-tab-admin" class="px-4 py-2 text-xs sm:text-sm font-bold rounded-lg bg-gray-800/90 hover:bg-gray-700 text-gray-300 transition-all border border-gray-700">
-          <i class="fa-solid fa-headset mr-1.5 text-brand-red"></i> Admin Štúdio
-        </button>
-      </div>
-
-    </div>
-  </header>
-
-  <!-- Global Toast Notification -->
-  <div id="global-toast" class="hidden fixed bottom-5 right-5 z-50 bg-gray-900 border border-brand-red text-white px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 transition-all duration-300">
-    <i id="toast-icon" class="fa-solid fa-circle-info text-brand-red text-lg"></i>
-    <span id="toast-message" class="text-xs sm:text-sm font-medium">Správa...</span>
-  </div>
-
-  <!-- Main Container -->
-  <main class="flex-grow max-w-7xl w-full mx-auto px-2 sm:px-4 py-4 flex flex-col md:flex-row gap-4">
-
-    <!-- Sidebar / Sports Navigation -->
-    <aside class="w-full md:w-64 bg-[#18181d] rounded-xl border border-gray-800/80 p-3 h-fit shadow-md">
-      <div class="text-[11px] font-bold uppercase text-gray-400 px-3 py-2 border-b border-gray-800/80 mb-2 tracking-wider flex justify-between items-center">
-        <span>Kategórie Športov</span>
-        <i class="fa-solid fa-bars-staggered text-gray-500"></i>
-      </div>
-      <nav class="space-y-1">
-        <button onclick="filterSport('all')" class="sport-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs sm:text-sm font-bold bg-gray-800 text-white border-l-4 border-brand-red transition-all">
-          <span class="flex items-center"><i class="fa-solid fa-globe w-5 text-center mr-2 text-gray-300"></i> Všetky zápasy</span>
-          <span id="count-all" class="text-[10px] bg-gray-900 px-2 py-0.5 rounded-full text-gray-300 font-mono">0</span>
-        </button>
-        <button onclick="filterSport('Futbal')" class="sport-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs sm:text-sm font-medium text-gray-400 hover:bg-gray-800/60 hover:text-white transition-all">
-          <span class="flex items-center"><i class="fa-solid fa-futbol w-5 text-center mr-2 text-green-500"></i> Futbal</span>
-          <span id="count-futbal" class="text-[10px] bg-gray-900 px-2 py-0.5 rounded-full text-gray-400 font-mono">0</span>
-        </button>
-        <button onclick="filterSport('Hokej')" class="sport-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs sm:text-sm font-medium text-gray-400 hover:bg-gray-800/60 hover:text-white transition-all">
-          <span class="flex items-center"><i class="fa-solid fa-hockey-puck w-5 text-center mr-2 text-blue-400"></i> Hokej</span>
-          <span id="count-hokej" class="text-[10px] bg-gray-900 px-2 py-0.5 rounded-full text-gray-400 font-mono">0</span>
-        </button>
-        <button onclick="filterSport('Tenis')" class="sport-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs sm:text-sm font-medium text-gray-400 hover:bg-gray-800/60 hover:text-white transition-all">
-          <span class="flex items-center"><i class="fa-solid fa-baseball-bat-ball w-5 text-center mr-2 text-yellow-400"></i> Tenis</span>
-          <span id="count-tenis" class="text-[10px] bg-gray-900 px-2 py-0.5 rounded-full text-gray-400 font-mono">0</span>
-        </button>
-      </nav>
-
-      <!-- Broadcast Status Card -->
-      <div class="mt-5 p-3.5 bg-gradient-to-br from-[#121215] to-[#1f1f26] rounded-xl border border-gray-800/90 shadow-inner">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-bold text-gray-200 flex items-center">
-            <i class="fa-solid fa-radio text-brand-red mr-1.5"></i> AUDIO SERVER
-          </span>
-          <span id="sidebar-audio-dot" class="w-2.5 h-2.5 rounded-full bg-gray-600"></span>
-        </div>
-        <p id="sidebar-audio-status" class="text-[11px] text-gray-400">Vysielanie je momentálne neaktívne.</p>
-      </div>
-    </aside>
-
-    <!-- CONTENT AREA -->
-    <div class="flex-grow flex flex-col space-y-4">
-
-      <!-- PUBLIC MATCHES VIEW -->
-      <section id="view-public" class="space-y-4">
-        
-        <!-- Controls Bar -->
-        <div class="bg-[#18181d] p-2.5 rounded-xl border border-gray-800/80 flex flex-wrap gap-2 items-center justify-between shadow-sm">
-          <div class="flex items-center space-x-1 sm:space-x-2 overflow-x-auto py-1">
-            <button onclick="filterStatus('all')" id="status-all" class="filter-status-btn px-3.5 py-1.5 rounded-lg text-xs font-bold bg-brand-red text-white transition-all shadow">
-              VŠETKY
-            </button>
-            <button onclick="filterStatus('live')" id="status-live" class="filter-status-btn px-3.5 py-1.5 rounded-lg text-xs font-bold bg-gray-800/90 text-gray-400 hover:text-white flex items-center transition-all">
-              <span class="w-2 h-2 rounded-full bg-brand-red mr-1.5 pulse-live"></span> ŽIVÉ (<span id="live-counter">0</span>)
-            </button>
-            <button onclick="filterStatus('finished')" id="status-finished" class="filter-status-btn px-3.5 py-1.5 rounded-lg text-xs font-bold bg-gray-800/90 text-gray-400 hover:text-white transition-all">
-              SKONČENÉ
-            </button>
-            <button onclick="filterStatus('upcoming')" id="status-upcoming" class="filter-status-btn px-3.5 py-1.5 rounded-lg text-xs font-bold bg-gray-800/90 text-gray-400 hover:text-white transition-all">
-              PROGRAM
-            </button>
-          </div>
-
-          <div class="relative w-full sm:w-48">
-            <input type="text" id="search-input" onkeyup="renderPublicMatches()" placeholder="Hľadať zápas alebo tím..." class="w-full bg-[#121215] text-xs text-gray-200 border border-gray-700/80 rounded-lg px-3 py-1.5 focus:outline-none focus:border-brand-red">
-          </div>
-        </div>
-
-        <!-- Matches Container -->
-        <div id="matches-list" class="space-y-4">
-          <div class="bg-[#18181d] border border-gray-800 p-8 rounded-xl text-center text-gray-500">
-            <i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-brand-red"></i>
-            <p class="text-xs">Načítavam živé dáta z Firebase Realtime DB...</p>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- ADMIN LOGIN & CONTROL VIEW -->
-      <section id="view-admin" class="hidden space-y-4">
-        
-        <!-- FIREBASE ADMIN LOGIN CARD -->
-        <div id="admin-login-card" class="max-w-md mx-auto my-8 bg-[#18181d] border border-gray-800 p-6 rounded-2xl shadow-2xl">
-          <div class="text-center mb-6">
-            <div class="w-14 h-14 bg-brand-red/10 border border-brand-red/40 text-brand-red rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
-              <i class="fa-solid fa-shield-halved"></i>
-            </div>
-            <h2 class="text-lg font-bold text-white uppercase tracking-wide">Prihlásenie Administrátora</h2>
-            <p class="text-xs text-gray-400 mt-1">Overenie cez Firebase Auth</p>
-          </div>
-          
-          <form onsubmit="handleAdminLogin(event)" class="space-y-4">
-            <div>
-              <label class="block text-xs font-bold text-gray-400 mb-1">Admin Email</label>
-              <input type="email" id="admin-email" value="admin@scorly.com" class="w-full bg-[#121215] border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-red" required>
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-400 mb-1">Heslo</label>
-              <input type="password" id="admin-pass" value="admin123" class="w-full bg-[#121215] border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-red" required>
-            </div>
-
-            <div class="p-3 bg-gray-900/60 rounded-lg border border-gray-800 text-[11px] text-gray-400">
-              <i class="fa-solid fa-info-circle text-brand-red mr-1"></i> Pre demo prihlásenie zadajte vyššie uvedený email a heslo alebo kliknite na tlačidlo "Zýchle demo prihlásenie".
-            </div>
-
-            <button type="submit" class="w-full bg-brand-red hover:bg-red-700 text-white font-bold py-2.5 rounded-lg text-xs uppercase tracking-wider transition-all shadow-md">
-              Prihlásiť sa cez Firebase
-            </button>
-            
-            <button type="button" onclick="quickDemoLogin()" class="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-2 rounded-lg text-xs transition-all">
-              Rýchle Demo Prihlásenie
-            </button>
-          </form>
-        </div>
-
-        <!-- ADMIN DASHBOARD PANEL -->
-        <div id="admin-dashboard" class="hidden space-y-6">
-
-          <!-- Admin Control Header -->
-          <div class="bg-[#18181d] p-4 rounded-xl border border-gray-800 flex flex-wrap justify-between items-center gap-4 shadow-md">
-            <div>
-              <span class="text-[10px] text-brand-red font-mono uppercase font-bold tracking-wider">Firebase Admin Console</span>
-              <h1 class="text-base font-bold text-white flex items-center">
-                <i class="fa-solid fa-headset text-brand-red mr-2"></i> Živé Audio Vysielanie & Správa Zápasov
-              </h1>
-            </div>
-            <div class="flex items-center space-x-3">
-              <button onclick="openNewMatchModal()" class="bg-brand-red hover:bg-red-700 text-white px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center shadow-md">
-                <i class="fa-solid fa-plus mr-1.5"></i> Pridať Zápas
-              </button>
-              <button onclick="handleAdminLogout()" class="bg-gray-800 text-gray-300 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-700 border border-gray-700 transition-all">
-                <i class="fa-solid fa-right-from-bracket mr-1"></i> Odhlásiť
-              </button>
-            </div>
-          </div>
-
-          <!-- AUDIO COMMENTARY STUDIO & COMMERCIALS PANEL -->
-          <div class="bg-gradient-to-r from-[#18181d] via-[#1f1f28] to-[#18181d] p-5 rounded-2xl border border-gray-800/90 shadow-2xl space-y-5">
-            
-            <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-800 pb-4 gap-3">
-              <div>
-                <span class="text-[10px] text-brand-red uppercase tracking-widest font-bold font-mono">Živý Prenos</span>
-                <h3 class="text-sm sm:text-base font-bold text-white flex items-center mt-0.5">
-                  Vybraný zápas pre komentovanie: 
-                  <select id="live-match-select" onchange="changeActiveCommentaryMatch()" class="ml-2 bg-[#121215] text-brand-red font-bold border border-gray-700 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-brand-red">
-                    <!-- Populated dynamically -->
-                  </select>
-                </h3>
-              </div>
-
-              <div id="studio-status-badge" class="px-3.5 py-1.5 rounded-full bg-gray-800 text-gray-400 text-xs font-bold border border-gray-700 flex items-center w-fit">
-                <span class="w-2 h-2 rounded-full bg-gray-500 mr-2"></span> Vysielanie Vypnuté
-              </div>
-            </div>
-
-            <!-- Studio Controls Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              
-              <!-- 1. Microphone Control -->
-              <div class="bg-[#121215] p-4 rounded-xl border border-gray-800 flex flex-col justify-between space-y-3">
-                <div>
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold text-white">1. MIKROFÓN ADMINA</span>
-                    <i class="fa-solid fa-microphone text-brand-red"></i>
-                  </div>
-                  <p class="text-[11px] text-gray-400">Živý hlasový vstup. Pri zapnutí mikrofónu sa reklama/prestávka automaticky zruší.</p>
-                </div>
-
-                <div>
-                  <div id="mic-visualizer" class="h-9 bg-gray-900/90 rounded-lg border border-gray-800 mb-3 flex items-center justify-center space-x-1.5 px-3">
-                    <span class="mic-wave-bar w-1.5 bg-brand-red rounded-full opacity-30"></span>
-                    <span class="mic-wave-bar w-1.5 bg-brand-red rounded-full opacity-30"></span>
-                    <span class="mic-wave-bar w-1.5 bg-brand-red rounded-full opacity-30"></span>
-                    <span class="mic-wave-bar w-1.5 bg-brand-red rounded-full opacity-30"></span>
-                    <span class="mic-wave-bar w-1.5 bg-brand-red rounded-full opacity-30"></span>
-                  </div>
-                  <button id="btn-toggle-mic" onclick="toggleMicrophone()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 rounded-lg text-xs transition-all flex items-center justify-center shadow">
-                    <i class="fa-solid fa-microphone-slash mr-1.5"></i> ZAPNÚŤ MIKROFÓN
-                  </button>
-                </div>
-              </div>
-
-              <!-- 2. Break & Commercial Music Control -->
-              <div class="bg-[#121215] p-4 rounded-xl border border-gray-800 flex flex-col justify-between space-y-3">
-                <div>
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold text-white">2. PRESTÁVKA / REKLAMA</span>
-                    <i class="fa-solid fa-music text-yellow-400"></i>
-                  </div>
-                  <p class="text-[11px] text-gray-400 mb-2">Spustí pesničku / znelku a automaticky vypne mikrofón.</p>
-                  
-                  <div class="space-y-1.5">
-                    <label class="block text-[10px] text-gray-400 font-bold">Výber Znelky / Štýlu:</label>
-                    <select id="music-track-select" class="w-full bg-gray-900 border border-gray-700 text-gray-200 text-xs rounded-lg px-2.5 py-1.5">
-                      <option value="stadium">Štadiónová Znelka & Hype</option>
-                      <option value="lounge">Reklamný Lounge Beat</option>
-                      <option value="synth">EDM Prestávkový Rytmus</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <button id="btn-toggle-break" onclick="toggleBreakMode()" class="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-bold py-2.5 rounded-lg text-xs transition-all flex items-center justify-center shadow">
-                    <i class="fa-solid fa-play mr-1.5"></i> SPUSTIŤ PESNIČKU / REKLAMU
-                  </button>
-                </div>
-              </div>
-
-              <!-- 3. Audio Effects -->
-              <div class="bg-[#121215] p-4 rounded-xl border border-gray-800 flex flex-col justify-between space-y-3">
-                <div>
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold text-white">3. RYCHLÉ ZVUKOVÉ EFEKTY</span>
-                    <i class="fa-solid fa-bullhorn text-blue-400"></i>
-                  </div>
-                  <p class="text-[11px] text-gray-400">Prehrá zvukový efekt všetkým poslucháčom v reálnom čase.</p>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2">
-                  <button onclick="triggerSoundEffect('goal')" class="bg-gray-800 hover:bg-gray-700 text-xs font-bold py-2.5 px-2 rounded-lg text-brand-green border border-gray-700">
-                    ⚽ Gól Klaksón
-                  </button>
-                  <button onclick="triggerSoundEffect('whistle')" class="bg-gray-800 hover:bg-gray-700 text-xs font-bold py-2.5 px-2 rounded-lg text-yellow-400 border border-gray-700">
-                    📣 Píšťalka
-                  </button>
-                  <button onclick="triggerSoundEffect('cheer')" class="bg-gray-800 hover:bg-gray-700 text-xs font-bold py-2.5 px-2 rounded-lg text-blue-300 border border-gray-700 col-span-2">
-                    👏 Potlesk Divákov
-                  </button>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-
-          <!-- ADMIN MATCHES MANAGEMENT TABLE -->
-          <div class="bg-[#18181d] border border-gray-800 rounded-xl overflow-hidden shadow-lg">
-            <div class="p-4 border-b border-gray-800 flex justify-between items-center">
-              <h3 class="text-xs sm:text-sm font-bold text-white flex items-center">
-                <i class="fa-solid fa-list-check mr-2 text-brand-red"></i> Zoznam Zápasov na Firebase
-              </h3>
-              <span class="text-[11px] text-gray-400 font-mono">Realtime Sync Active</span>
-            </div>
-
-            <div class="overflow-x-auto">
-              <table class="w-full text-left text-xs text-gray-300">
-                <thead class="bg-[#121215] text-gray-400 font-bold uppercase border-b border-gray-800">
-                  <tr>
-                    <th class="p-3">Šport / Liga</th>
-                    <th class="p-3">Domáci vs Hostia</th>
-                    <th class="p-3 text-center">Skóre (+/-)</th>
-                    <th class="p-3">Čas & Stav zápasu</th>
-                    <th class="p-3 text-center">Akcie</th>
-                  </tr>
-                </thead>
-                <tbody id="admin-matches-tbody" class="divide-y divide-gray-800/80">
-                  <!-- Dynamic Admin Rows -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-        </div>
-
-      </section>
-
+    <div class="nav-categories">
+        <button class="cat-btn active">VŠETKO</button>
+        <button class="cat-btn">ŽIVÉ</button>
+        <button class="cat-btn">FUTBAL</button>
+        <button class="cat-btn">HOKEJ</button>
     </div>
 
-  </main>
-
-  <!-- MATCH DETAIL & LISTEN AUDIO MODAL -->
-  <div id="match-modal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
-    <div class="bg-[#18181d] border border-gray-800 w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-      
-      <!-- Modal Header -->
-      <div class="bg-[#121215] p-4 border-b border-gray-800 flex justify-between items-center">
-        <div class="flex items-center space-x-2">
-          <span id="modal-sport-tag" class="bg-brand-red text-white px-2 py-0.5 rounded text-[10px] font-bold">FUTBAL</span>
-          <span id="modal-league" class="text-xs text-gray-400 font-medium">Liga</span>
-        </div>
-        <button onclick="closeMatchModal()" class="text-gray-400 hover:text-white text-lg px-2">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <!-- Modal Body -->
-      <div class="p-4 sm:p-6 overflow-y-auto space-y-5 custom-scrollbar">
-        
-        <!-- Scoreboard Header -->
-        <div class="bg-gradient-to-b from-[#121215] to-[#18181d] border border-gray-800/80 rounded-xl p-4 text-center">
-          <div id="modal-status-badge" class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-gray-800 text-gray-300 border border-gray-700 mb-3">
-            ZÁPAS
-          </div>
-
-          <div class="flex items-center justify-around">
-            <!-- Home -->
-            <div class="flex flex-col items-center w-1/3">
-              <div id="modal-home-logo" class="w-12 h-12 sm:w-14 sm:h-14 bg-gray-800 rounded-full flex items-center justify-center text-sm sm:text-base font-bold text-gray-200 mb-2 border border-gray-700">
-                HOM
-              </div>
-              <span id="modal-home-name" class="font-bold text-xs sm:text-sm text-white text-center">Domáci</span>
+    <div class="container">
+        <div class="live-player-bar">
+            <div class="player-info">
+                <div class="live-dot"></div>
+                <div>
+                    <div style="font-size:12px; color:var(--text-muted);">ŽIVÝ AUDIO KOMENTÁR</div>
+                    <div id="broadcast-status-text" style="font-size:14px; font-weight:700;">Vysielanie je pripravené</div>
+                </div>
             </div>
-
-            <!-- Score -->
-            <div class="flex flex-col items-center">
-              <span id="modal-score" class="text-3xl sm:text-5xl font-black text-brand-red font-mono">0 : 0</span>
-              <span id="modal-period" class="text-[11px] text-gray-400 mt-1">Čas</span>
-            </div>
-
-            <!-- Away -->
-            <div class="flex flex-col items-center w-1/3">
-              <div id="modal-away-logo" class="w-12 h-12 sm:w-14 sm:h-14 bg-gray-800 rounded-full flex items-center justify-center text-sm sm:text-base font-bold text-gray-200 mb-2 border border-gray-700">
-                AWA
-              </div>
-              <span id="modal-away-name" class="font-bold text-xs sm:text-sm text-white text-center">Hostia</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- PUBLIC AUDIO COMMENTARY RADIO PLAYER -->
-        <div class="bg-[#121215] border border-gray-800 p-4 rounded-xl space-y-3">
-          <div class="flex justify-between items-center">
-            <div class="flex items-center space-x-3">
-              <div class="w-9 h-9 rounded-full bg-brand-red/15 text-brand-red flex items-center justify-center border border-brand-red/30">
-                <i class="fa-solid fa-radio text-sm"></i>
-              </div>
-              <div>
-                <h4 class="text-xs font-bold text-white">Scorly Živé Audio Rádio</h4>
-                <p id="listener-audio-state" class="text-[11px] text-gray-400">Stav: Neaktívne</p>
-              </div>
-            </div>
-            
-            <button id="btn-listen-audio" onclick="toggleListenAudio()" class="px-4 py-2 bg-brand-red hover:bg-red-700 text-white font-bold text-xs rounded-lg transition-all flex items-center shadow-md">
-              <i class="fa-solid fa-play mr-1.5"></i> POČÚVAŤ RÁDIO
+            <button onclick="toggleAudio()" id="audio-toggle-btn" style="background:var(--accent-red); border:none; color:#fff; padding:8px 16px; border-radius:4px; font-weight:700; cursor:pointer;">
+                <i class="fa-solid fa-volume-high"></i> POČÚVAŤ
             </button>
-          </div>
+        </div>
 
-          <!-- Radio Visualizer & Status -->
-          <div class="bg-[#18181d] rounded-lg p-2.5 border border-gray-800 flex items-center justify-between">
-            <div class="flex items-center space-x-2">
-              <span id="public-audio-badge" class="w-2.5 h-2.5 rounded-full bg-gray-600"></span>
-              <span id="public-audio-text" class="text-xs text-gray-300 font-mono">Čaká sa na pripojenie...</span>
-            </div>
+        <div id="matches-container">
+            <div style="text-align:center; padding:30px; color:var(--text-muted);">Načítavam zápasy...</div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBrbho9N3nrFwPyj9tNylBNh8fZ2MqBeHY",
+            authDomain: "scorely-fff98.firebaseapp.com",
+            databaseURL: "https://scorely-fff98-default-rtdb.firebaseio.com",
+            projectId: "scorely-fff98",
+            storageBucket: "scorely-fff98.firebasestorage.app",
+            messagingSenderId: "1094795512385",
+            appId: "1:1094795512385:web:2c4785b37cc7063bac14c0",
+            measurementId: "G-CNFL3RQ8FL"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let audioContext = null;
+        let isPlaying = false;
+
+        db.ref('broadcast').on('value', (snapshot) => {
+            const data = snapshot.val() || {};
+            const statusText = document.getElementById('broadcast-status-text');
             
-            <div id="public-visualizer" class="hidden flex items-center space-x-1">
-              <span class="mic-wave-bar w-1 bg-brand-red rounded-full h-3"></span>
-              <span class="mic-wave-bar w-1 bg-brand-red rounded-full h-5"></span>
-              <span class="mic-wave-bar w-1 bg-brand-red rounded-full h-2"></span>
-              <span class="mic-wave-bar w-1 bg-brand-red rounded-full h-4"></span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Timeline Events -->
-        <div class="space-y-2">
-          <h4 class="text-xs font-bold uppercase text-gray-400 border-b border-gray-800 pb-1">Udalosti Zápasu</h4>
-          <div id="modal-timeline" class="space-y-1.5">
-            <!-- Dynamic Incidents -->
-          </div>
-        </div>
-
-      </div>
-
-    </div>
-  </div>
-
-  <!-- MODAL: NEW MATCH -->
-  <div id="new-match-modal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
-    <div class="bg-[#18181d] border border-gray-800 w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl p-5 space-y-4">
-      <div class="flex justify-between items-center border-b border-gray-800 pb-3">
-        <h3 class="text-sm font-bold text-white flex items-center">
-          <i class="fa-solid fa-square-plus mr-2 text-brand-red"></i> Nový Zápas (Firebase)
-        </h3>
-        <button onclick="closeNewMatchModal()" class="text-gray-400 hover:text-white">
-          <i class="fa-solid fa-xmark text-lg"></i>
-        </button>
-      </div>
-
-      <form onsubmit="saveNewMatch(event)" class="space-y-3">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-gray-400 mb-1">Šport</label>
-            <select id="form-sport" class="w-full bg-[#121215] border border-gray-700 text-white text-xs rounded-lg p-2.5 focus:outline-none focus:border-brand-red">
-              <option value="Futbal">Futbal</option>
-              <option value="Hokej">Hokej</option>
-              <option value="Tenis">Tenis</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-gray-400 mb-1">Súťaž / Liga</label>
-            <input type="text" id="form-league" placeholder="napr. Niké Liga" class="w-full bg-[#121215] border border-gray-700 text-white text-xs rounded-lg p-2.5 focus:outline-none focus:border-brand-red" required>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-gray-400 mb-1">Domáci Tím</label>
-            <input type="text" id="form-home" placeholder="Tím Domáci" class="w-full bg-[#121215] border border-gray-700 text-white text-xs rounded-lg p-2.5 focus:outline-none focus:border-brand-red" required>
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-gray-400 mb-1">Hostia Tím</label>
-            <input type="text" id="form-away" placeholder="Tím Hostia" class="w-full bg-[#121215] border border-gray-700 text-white text-xs rounded-lg p-2.5 focus:outline-none focus:border-brand-red" required>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-gray-400 mb-1">Čas / Minúta</label>
-            <input type="text" id="form-time" placeholder="19:00 alebo 12'" class="w-full bg-[#121215] border border-gray-700 text-white text-xs rounded-lg p-2.5 focus:outline-none focus:border-brand-red" required>
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-gray-400 mb-1">Stav Zápasu</label>
-            <select id="form-status" class="w-full bg-[#121215] border border-gray-700 text-white text-xs rounded-lg p-2.5 focus:outline-none focus:border-brand-red">
-              <option value="upcoming">Nadchádzajúci</option>
-              <option value="live">1. Poločas (Živý)</option>
-              <option value="break">Prestávka / Reklama</option>
-              <option value="finished">Skončený</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="pt-3 flex justify-end space-x-2">
-          <button type="button" onclick="closeNewMatchModal()" class="px-4 py-2 bg-gray-800 text-gray-300 text-xs font-bold rounded-lg hover:bg-gray-700">
-            Zrušiť
-          </button>
-          <button type="submit" class="px-4 py-2 bg-brand-red text-white text-xs font-bold rounded-lg hover:bg-red-700">
-            Uložiť do Firebase
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- APPLICATION LOGIC & REALTIME DB BINDINGS -->
-  <script>
-    // Global Application State synced with Firebase
-    let matchesData = {};
-    let broadcastState = {
-      activeMatchId: "",
-      micActive: false,
-      breakActive: false,
-      musicTrack: "stadium",
-      lastSoundEffect: "",
-      effectTimestamp: 0
-    };
-
-    let isAdminLoggedIn = false;
-    let currentSportFilter = 'all';
-    let currentStatusFilter = 'all';
-    let activeModalMatchId = null;
-
-    // Web Audio Synthesizer Context
-    let audioCtx = null;
-    let isUserListening = false;
-    let breakMusicOscillator = null;
-
-    // Wait for Firebase module load event
-    window.addEventListener('firebase-ready', () => {
-      setupFirebaseListeners();
-      setupAuthListener();
-    });
-
-    // --- FIREBASE REALTIME LISTENERS ---
-    function setupFirebaseListeners() {
-      // 1. Listen to Matches
-      const matchesRef = window.fbDbRef(window.fbDb, 'matches');
-      window.fbDbOnValue(matchesRef, (snapshot) => {
-        const val = snapshot.val();
-        matchesData = val || {};
-        
-        // Seed default initial matches if DB is empty
-        if (!val) {
-          seedInitialFirebaseData();
-          return;
-        }
-
-        renderPublicMatches();
-        renderSportCounts();
-        if (isAdminLoggedIn) {
-          renderAdminMatchesTable();
-          populateAdminMatchSelect();
-        }
-        if (activeModalMatchId && matchesData[activeModalMatchId]) {
-          openMatchModal(activeModalMatchId);
-        }
-      });
-
-      // 2. Listen to Live Broadcast Studio State
-      const broadcastRef = window.fbDbRef(window.fbDb, 'broadcast');
-      window.fbDbOnValue(broadcastRef, (snapshot) => {
-        const val = snapshot.val();
-        if (val) {
-          const prevEffectTime = broadcastState.effectTimestamp;
-          broadcastState = val;
-
-          // Play sound effect if triggered remotely
-          if (val.effectTimestamp && val.effectTimestamp > prevEffectTime && isUserListening) {
-            playSynthesizedSound(val.lastSoundEffect);
-          }
-
-          updateStudioUI();
-          updatePublicRadioUI();
-          renderPublicMatches();
-        }
-      });
-    }
-
-    // Seed default sample data if Firebase database is fresh
-    function seedInitialFirebaseData() {
-      const defaultMatches = {
-        "match_1": {
-          id: "match_1",
-          sport: "Futbal",
-          league: "Slovensko - Niké Liga",
-          home: "Slovan Bratislava",
-          away: "Spartak Trnava",
-          homeLogo: "SLB",
-          awayLogo: "TRN",
-          scoreHome: 2,
-          scoreAway: 1,
-          time: "64'",
-          status: "live",
-          events: [
-            { minute: "14'", type: "goal", player: "Strelec D.", team: "home" },
-            { minute: "51'", type: "goal", player: "Daniel E.", team: "away" },
-            { minute: "60'", type: "goal", player: "Barseghyan", team: "home" }
-          ]
-        },
-        "match_2": {
-          id: "match_2",
-          sport: "Futbal",
-          league: "Slovensko - Niké Liga",
-          home: "DAC Dunajská Streda",
-          away: "Žilina",
-          homeLogo: "DAC",
-          awayLogo: "ZIL",
-          scoreHome: 0,
-          scoreAway: 0,
-          time: "19:00",
-          status: "upcoming",
-          events: []
-        },
-        "match_3": {
-          id: "match_3",
-          sport: "Hokej",
-          league: "Tipos Extraliga",
-          home: "HK Nitra",
-          away: "HC Košice",
-          homeLogo: "NIT",
-          awayLogo: "KOS",
-          scoreHome: 4,
-          scoreAway: 3,
-          time: "Koniec",
-          status: "finished",
-          events: []
-        }
-      };
-
-      window.fbDbSet(window.fbDbRef(window.fbDb, 'matches'), defaultMatches);
-
-      window.fbDbSet(window.fbDbRef(window.fbDb, 'broadcast'), {
-        activeMatchId: "match_1",
-        micActive: false,
-        breakActive: false,
-        musicTrack: "stadium",
-        lastSoundEffect: "",
-        effectTimestamp: Date.now()
-      });
-    }
-
-    // --- FIREBASE AUTHENTICATION ---
-    function setupAuthListener() {
-      window.fbOnAuthStateChanged(window.fbAuth, (user) => {
-        if (user) {
-          isAdminLoggedIn = true;
-          document.getElementById('admin-login-card').classList.add('hidden');
-          document.getElementById('admin-dashboard').classList.remove('hidden');
-          renderAdminMatchesTable();
-          populateAdminMatchSelect();
-        } else {
-          isAdminLoggedIn = false;
-          document.getElementById('admin-login-card').classList.remove('hidden');
-          document.getElementById('admin-dashboard').classList.add('hidden');
-        }
-      });
-    }
-
-    async function handleAdminLogin(e) {
-      e.preventDefault();
-      const email = document.getElementById('admin-email').value;
-      const pass = document.getElementById('admin-pass').value;
-
-      try {
-        await window.fbSignIn(window.fbAuth, email, pass);
-        showToast('Prihlásenie cez Firebase úspešné!', 'success');
-      } catch (err) {
-        // Fallback for quick testing if email does not exist yet on Auth
-        quickDemoLogin();
-      }
-    }
-
-    function quickDemoLogin() {
-      isAdminLoggedIn = true;
-      document.getElementById('admin-login-card').classList.add('hidden');
-      document.getElementById('admin-dashboard').classList.remove('hidden');
-      renderAdminMatchesTable();
-      populateAdminMatchSelect();
-      showToast('Admin Demo Režim Aktivovaný', 'success');
-    }
-
-    function handleAdminLogout() {
-      window.fbSignOut(window.fbAuth).catch(() => {});
-      isAdminLoggedIn = false;
-      document.getElementById('admin-login-card').classList.remove('hidden');
-      document.getElementById('admin-dashboard').classList.add('hidden');
-      showToast('Boli ste odhlásený', 'info');
-    }
-
-    // --- VIEW SWITCHING & FILTERS ---
-    function switchView(view) {
-      const pubView = document.getElementById('view-public');
-      const admView = document.getElementById('view-admin');
-      const btnPub = document.getElementById('btn-tab-public');
-      const btnAdm = document.getElementById('btn-tab-admin');
-
-      if (view === 'public') {
-        pubView.classList.remove('hidden');
-        admView.classList.add('hidden');
-        btnPub.className = "px-4 py-2 text-xs sm:text-sm font-bold rounded-lg bg-brand-red text-white transition-all shadow-md";
-        btnAdm.className = "px-4 py-2 text-xs sm:text-sm font-bold rounded-lg bg-gray-800/90 hover:bg-gray-700 text-gray-300 transition-all border border-gray-700";
-      } else {
-        pubView.classList.add('hidden');
-        admView.classList.remove('hidden');
-        btnAdm.className = "px-4 py-2 text-xs sm:text-sm font-bold rounded-lg bg-brand-red text-white transition-all shadow-md";
-        btnPub.className = "px-4 py-2 text-xs sm:text-sm font-bold rounded-lg bg-gray-800/90 hover:bg-gray-700 text-gray-300 transition-all border border-gray-700";
-      }
-    }
-
-    function filterSport(sport) {
-      currentSportFilter = sport;
-      document.querySelectorAll('.sport-btn').forEach(btn => {
-        btn.className = "sport-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs sm:text-sm font-medium text-gray-400 hover:bg-gray-800/60 hover:text-white transition-all";
-      });
-      event.currentTarget.className = "sport-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs sm:text-sm font-bold bg-gray-800 text-white border-l-4 border-brand-red transition-all";
-      renderPublicMatches();
-    }
-
-    function filterStatus(status) {
-      currentStatusFilter = status;
-      document.querySelectorAll('.filter-status-btn').forEach(btn => {
-        btn.className = "filter-status-btn px-3.5 py-1.5 rounded-lg text-xs font-bold bg-gray-800/90 text-gray-400 hover:text-white transition-all";
-      });
-      const target = document.getElementById(`status-${status}`);
-      if (target) {
-        target.className = "filter-status-btn px-3.5 py-1.5 rounded-lg text-xs font-bold bg-brand-red text-white transition-all shadow";
-      }
-      renderPublicMatches();
-    }
-
-    function renderSportCounts() {
-      const matchArray = Object.values(matchesData);
-      document.getElementById('count-all').innerText = matchArray.length;
-      document.getElementById('count-futbal').innerText = matchArray.filter(m => m.sport === 'Futbal').length;
-      document.getElementById('count-hokej').innerText = matchArray.filter(m => m.sport === 'Hokej').length;
-      document.getElementById('count-tenis').innerText = matchArray.filter(m => m.sport === 'Tenis').length;
-      document.getElementById('live-counter').innerText = matchArray.filter(m => m.status === 'live').length;
-    }
-
-    // --- RENDER MATCHES (PUBLIC FLASHSCORE STYLE) ---
-    function renderPublicMatches() {
-      const container = document.getElementById('matches-list');
-      const searchQuery = document.getElementById('search-input').value.toLowerCase();
-      const matchArray = Object.values(matchesData);
-
-      let filtered = matchArray.filter(m => {
-        const matchSport = currentSportFilter === 'all' || m.sport === currentSportFilter;
-        const matchStatus = currentStatusFilter === 'all' || m.status === currentStatusFilter;
-        const matchSearch = m.home.toLowerCase().includes(searchQuery) || m.away.toLowerCase().includes(searchQuery) || m.league.toLowerCase().includes(searchQuery);
-        return matchSport && matchStatus && matchSearch;
-      });
-
-      if (filtered.length === 0) {
-        container.innerHTML = `
-          <div class="bg-[#18181d] border border-gray-800/80 p-8 rounded-xl text-center text-gray-500 shadow-sm">
-            <i class="fa-regular fa-folder-open text-3xl mb-2"></i>
-            <p class="text-xs">Žiadne zápasy neodpovedajú vybraným kritériám.</p>
-          </div>
-        `;
-        return;
-      }
-
-      // Group by league
-      const grouped = {};
-      filtered.forEach(m => {
-        if (!grouped[m.league]) grouped[m.league] = [];
-        grouped[m.league].push(m);
-      });
-
-      let html = '';
-
-      for (const [leagueName, items] of Object.entries(grouped)) {
-        html += `
-          <div class="bg-[#18181d] border border-gray-800/80 rounded-xl overflow-hidden shadow-md">
-            <!-- League Header -->
-            <div class="bg-[#121215] px-4 py-2.5 border-b border-gray-800/80 flex justify-between items-center">
-              <span class="text-xs font-bold text-white flex items-center">
-                <i class="fa-solid fa-trophy text-brand-red mr-2 text-xs"></i> ${leagueName}
-              </span>
-              <span class="text-[10px] text-gray-400 font-mono uppercase">${items[0].sport}</span>
-            </div>
-
-            <div class="divide-y divide-gray-800/60">
-        `;
-
-        items.forEach(m => {
-          const isLive = m.status === 'live' || m.status === 'break';
-          const isAudioOnThisMatch = broadcastState.activeMatchId === m.id && (broadcastState.micActive || broadcastState.breakActive);
-
-          html += `
-            <div onclick="openMatchModal('${m.id}')" class="p-3 hover:bg-gray-800/50 transition-all cursor-pointer flex items-center justify-between group">
-              
-              <!-- Time / Status -->
-              <div class="w-16 sm:w-20 text-center flex flex-col items-center justify-center">
-                ${isLive ? `
-                  <span class="text-[11px] font-bold text-brand-red flex items-center">
-                    <span class="w-1.5 h-1.5 rounded-full bg-brand-red mr-1 pulse-live"></span> ${m.time}
-                  </span>
-                ` : `
-                  <span class="text-xs font-semibold ${m.status === 'finished' ? 'text-gray-500' : 'text-gray-300'}">${m.time}</span>
-                `}
-
-                ${isAudioOnThisMatch ? `
-                  <span class="mt-1 bg-brand-red/20 text-brand-red border border-brand-red/40 text-[9px] px-1.5 py-0.2 rounded font-bold flex items-center">
-                    <i class="fa-solid fa-microphone text-[8px] mr-1"></i> AUDIO
-                  </span>
-                ` : ''}
-              </div>
-
-              <!-- Teams & Score -->
-              <div class="flex-grow px-2 sm:px-4 space-y-1">
-                <!-- Home -->
-                <div class="flex justify-between items-center">
-                  <div class="flex items-center space-x-2">
-                    <span class="w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-[10px] font-bold flex items-center justify-center border border-gray-700">${m.homeLogo || 'DOM'}</span>
-                    <span class="text-xs sm:text-sm font-medium ${isLive ? 'text-white' : 'text-gray-300'} group-hover:text-brand-red transition-colors">${m.home}</span>
-                  </div>
-                  <span class="text-xs sm:text-sm font-bold font-mono ${isLive ? 'text-brand-red' : 'text-gray-300'}">${m.status !== 'upcoming' ? m.scoreHome : '-'}</span>
-                </div>
-
-                <!-- Away -->
-                <div class="flex justify-between items-center">
-                  <div class="flex items-center space-x-2">
-                    <span class="w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-[10px] font-bold flex items-center justify-center border border-gray-700">${m.awayLogo || 'HOS'}</span>
-                    <span class="text-xs sm:text-sm font-medium ${isLive ? 'text-white' : 'text-gray-300'} group-hover:text-brand-red transition-colors">${m.away}</span>
-                  </div>
-                  <span class="text-xs sm:text-sm font-bold font-mono ${isLive ? 'text-brand-red' : 'text-gray-300'}">${m.status !== 'upcoming' ? m.scoreAway : '-'}</span>
-                </div>
-              </div>
-
-              <div class="pl-2 text-gray-600 group-hover:text-gray-300 transition-colors">
-                <i class="fa-solid fa-chevron-right text-xs"></i>
-              </div>
-
-            </div>
-          `;
+            if (data.mode === 'mic') {
+                statusText.innerText = "Živý komentár (Komentátor hovorí)";
+                statusText.style.color = "#00e676";
+            } else if (data.mode === 'music') {
+                statusText.innerText = "Reklama / Hudobná prestávka";
+                statusText.style.color = "#ffb300";
+            } else {
+                statusText.innerText = "Vysielanie je pozastavené";
+                statusText.style.color = "#8c9ba5";
+            }
         });
 
-        html += `
-            </div>
-          </div>
-        `;
-      }
+        db.ref('matches').on('value', (snapshot) => {
+            const matches = snapshot.val() || {};
+            const container = document.getElementById('matches-container');
+            container.innerHTML = '';
 
-      container.innerHTML = html;
-    }
+            if (Object.keys(matches).length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted);">Žiadne aktívne zápasy</div>';
+                return;
+            }
 
-    // --- MATCH MODAL DETAILS & AUDIO LISTEN PLAYER ---
-    function openMatchModal(id) {
-      activeModalMatchId = id;
-      const m = matchesData[id];
-      if (!m) return;
+            let html = '<div class="league-group"><div class="league-header"><i class="fa-solid fa-trophy"></i> Aktuálne Zápasy</div>';
+            
+            for (let id in matches) {
+                const m = matches[id];
+                const isLive = m.status === 'LIVE';
+                
+                html += `
+                    <div class="match-row">
+                        <div class="match-status ${isLive ? 'live' : ''}">${isLive ? m.time + "'" : m.status}</div>
+                        <div class="teams">
+                            <div class="team">${m.teamHome}</div>
+                            <div class="team">${m.teamAway}</div>
+                        </div>
+                        <div class="score">
+                            <div>${m.scoreHome}</div>
+                            <div>${m.scoreAway}</div>
+                        </div>
+                    </div>
+                `;
+            }
 
-      document.getElementById('modal-sport-tag').innerText = m.sport.toUpperCase();
-      document.getElementById('modal-league').innerText = m.league;
-      document.getElementById('modal-home-name').innerText = m.home;
-      document.getElementById('modal-away-name').innerText = m.away;
-      document.getElementById('modal-home-logo').innerText = m.homeLogo || 'HOM';
-      document.getElementById('modal-away-logo').innerText = m.awayLogo || 'AWA';
-      document.getElementById('modal-score').innerText = m.status === 'upcoming' ? '- : -' : `${m.scoreHome} : ${m.scoreAway}`;
-      document.getElementById('modal-period').innerText = m.time || '1. Poločas';
+            html += '</div>';
+            container.innerHTML = html;
+        });
 
-      const badge = document.getElementById('modal-status-badge');
-      if (m.status === 'live') {
-        badge.className = "inline-block px-3 py-1 rounded-full text-xs font-bold bg-red-950 text-brand-red border border-brand-red/40 mb-3 pulse-live";
-        badge.innerText = `● ŽIVÝ ZÁPAS - ${m.time}`;
-      } else if (m.status === 'break') {
-        badge.className = "inline-block px-3 py-1 rounded-full text-xs font-bold bg-yellow-950 text-yellow-400 border border-yellow-700/50 mb-3";
-        badge.innerText = `PRESTÁVKA / REKLAMA`;
-      } else if (m.status === 'finished') {
-        badge.className = "inline-block px-3 py-1 rounded-full text-xs font-bold bg-gray-800 text-gray-400 border border-gray-700 mb-3";
-        badge.innerText = `SKONČENÝ ZÁPAS`;
-      } else {
-        badge.className = "inline-block px-3 py-1 rounded-full text-xs font-bold bg-blue-950 text-blue-400 border border-blue-700/50 mb-3";
-        badge.innerText = `PROGRAM - ${m.time}`;
-      }
-
-      // Timeline events
-      const timeline = document.getElementById('modal-timeline');
-      const events = m.events || [];
-      if (events.length === 0) {
-        timeline.innerHTML = `<p class="text-xs text-gray-500 italic">Zatiaľ žiadne záznamy o udalostiach.</p>`;
-      } else {
-        timeline.innerHTML = events.map(ev => `
-          <div class="flex items-center space-x-3 text-xs bg-[#121215] p-2 rounded-lg border border-gray-800">
-            <span class="font-mono font-bold text-brand-red w-10">${ev.minute}</span>
-            <span>${ev.type === 'goal' ? '⚽ GÓL!' : '🟨 Karta'}</span>
-            <span class="font-bold text-white">${ev.player}</span>
-          </div>
-        `).join('');
-      }
-
-      updatePublicRadioUI();
-      document.getElementById('match-modal').classList.remove('hidden');
-    }
-
-    function closeMatchModal() {
-      document.getElementById('match-modal').classList.add('hidden');
-      activeModalMatchId = null;
-    }
-
-    // --- REALTIME AUDIO COMMENTARY & COMMERCIAL RADIO ---
-    function initAudioContext() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-    }
-
-    function toggleListenAudio() {
-      initAudioContext();
-      isUserListening = !isUserListening;
-
-      const btn = document.getElementById('btn-listen-audio');
-      if (isUserListening) {
-        btn.className = "px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold text-xs rounded-lg transition-all flex items-center shadow-md border border-gray-700";
-        btn.innerHTML = `<i class="fa-solid fa-stop mr-1.5 text-brand-red"></i> ZASTAVIŤ POČÚVANIE`;
-        showToast('Pripojený na živý audio stream', 'success');
-        if (broadcastState.breakActive) startSynthesizedMusic();
-      } else {
-        btn.className = "px-4 py-2 bg-brand-red hover:bg-red-700 text-white font-bold text-xs rounded-lg transition-all flex items-center shadow-md";
-        btn.innerHTML = `<i class="fa-solid fa-play mr-1.5"></i> POČÚVAŤ RÁDIO`;
-        stopSynthesizedMusic();
-        showToast('Odpojený z audio streamu', 'info');
-      }
-
-      updatePublicRadioUI();
-    }
-
-    function updatePublicRadioUI() {
-      const stateText = document.getElementById('listener-audio-state');
-      const badge = document.getElementById('public-audio-badge');
-      const text = document.getElementById('public-audio-text');
-      const viz = document.getElementById('public-visualizer');
-
-      // Update sidebar status
-      const sidebarStatus = document.getElementById('sidebar-audio-status');
-      const sidebarDot = document.getElementById('sidebar-audio-dot');
-
-      if (broadcastState.micActive) {
-        sidebarStatus.innerText = "🎤 Živý hlasový komentár admina!";
-        sidebarDot.className = "w-2.5 h-2.5 rounded-full bg-brand-red pulse-live";
-      } else if (broadcastState.breakActive) {
-        sidebarStatus.innerText = "🎵 Prebieha hudobná reklama / prestávka";
-        sidebarDot.className = "w-2.5 h-2.5 rounded-full bg-yellow-400 pulse-live";
-      } else {
-        sidebarStatus.innerText = "Vysielanie je momentálne neaktívne.";
-        sidebarDot.className = "w-2.5 h-2.5 rounded-full bg-gray-600";
-      }
-
-      if (!isUserListening) {
-        if (stateText) stateText.innerText = "Stav: Vypnuté (Neaktívne)";
-        if (badge) badge.className = "w-2.5 h-2.5 rounded-full bg-gray-600";
-        if (text) text.innerText = "Kliknite na 'Počúvať rádio' pre spustenie zvuku";
-        if (viz) viz.classList.add('hidden');
-        return;
-      }
-
-      if (broadcastState.micActive) {
-        if (stateText) stateText.innerText = "Stav: ŽIVÝ HLASOVÝ KOMENTÁR";
-        if (badge) badge.className = "w-2.5 h-2.5 rounded-full bg-brand-red pulse-live";
-        if (text) text.innerText = "🎙️ ADMIN VYSIELA HLAS: Práve počúvate živý komentár!";
-        if (viz) viz.classList.remove('hidden');
-        stopSynthesizedMusic();
-      } else if (broadcastState.breakActive) {
-        if (stateText) stateText.innerText = "Stav: REKLAMA / HUDBA";
-        if (badge) badge.className = "w-2.5 h-2.5 rounded-full bg-yellow-400 pulse-live";
-        if (text) text.innerText = "🎵 PRESTÁVKOVÁ ZNELKA: Hrá reklamná pesnička";
-        if (viz) viz.classList.remove('hidden');
-        startSynthesizedMusic();
-      } else {
-        if (stateText) stateText.innerText = "Stav: Čakanie na vstup admina";
-        if (badge) badge.className = "w-2.5 h-2.5 rounded-full bg-gray-500";
-        if (text) text.innerText = "Štúdio je pripojené, čaká sa na vysielanie.";
-        if (viz) viz.classList.add('hidden');
-        stopSynthesizedMusic();
-      }
-    }
-
-    // --- ADMIN AUDIO BROADCAST CONTROLS (FIREBASE SYNC) ---
-    function toggleMicrophone() {
-      initAudioContext();
-      const newMic = !broadcastState.micActive;
-      
-      window.fbDbUpdate(window.fbDbRef(window.fbDb, 'broadcast'), {
-        micActive: newMic,
-        breakActive: newMic ? false : broadcastState.breakActive
-      });
-
-      showToast(newMic ? 'Mikrofón ZAPNUTÝ pre všetkých poslucháčov' : 'Mikrofón VYPNUTÝ', newMic ? 'success' : 'info');
-    }
-
-    function toggleBreakMode() {
-      initAudioContext();
-      const newBreak = !broadcastState.breakActive;
-      const track = document.getElementById('music-track-select').value;
-
-      window.fbDbUpdate(window.fbDbRef(window.fbDb, 'broadcast'), {
-        breakActive: newBreak,
-        micActive: newBreak ? false : broadcastState.micActive,
-        musicTrack: track
-      });
-
-      showToast(newBreak ? 'Spustená reklamná znelka / pesnička' : 'Prestávka ukončená', 'info');
-    }
-
-    function triggerSoundEffect(type) {
-      initAudioContext();
-      window.fbDbUpdate(window.fbDbRef(window.fbDb, 'broadcast'), {
-        lastSoundEffect: type,
-        effectTimestamp: Date.now()
-      });
-      showToast(`Zvukový efekt [${type}] odoslaný poslucháčom`, 'success');
-    }
-
-    function updateStudioUI() {
-      const micBtn = document.getElementById('btn-toggle-mic');
-      const breakBtn = document.getElementById('btn-toggle-break');
-      const studioBadge = document.getElementById('studio-status-badge');
-
-      if (broadcastState.micActive) {
-        micBtn.className = "w-full bg-brand-red text-white font-bold py-2.5 rounded-lg text-xs transition-all flex items-center justify-center shadow pulse-live";
-        micBtn.innerHTML = `<i class="fa-solid fa-microphone mr-1.5"></i> MIKROFÓN ZAPNUTÝ (LIVE)`;
-        studioBadge.className = "px-3.5 py-1.5 rounded-full bg-red-950 text-brand-red border border-brand-red/50 text-xs font-bold flex items-center w-fit pulse-live";
-        studioBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-brand-red mr-2"></span> MIKROFÓN VYSIELA LIVE`;
-      } else {
-        micBtn.className = "w-full bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 rounded-lg text-xs transition-all flex items-center justify-center shadow";
-        micBtn.innerHTML = `<i class="fa-solid fa-microphone-slash mr-1.5"></i> ZAPNÚŤ MIKROFÓN`;
-      }
-
-      if (broadcastState.breakActive) {
-        breakBtn.className = "w-full bg-yellow-400 text-black font-bold py-2.5 rounded-lg text-xs transition-all flex items-center justify-center shadow pulse-live";
-        breakBtn.innerHTML = `<i class="fa-solid fa-pause mr-1.5"></i> PRESTÁVKA / REKLAMA BEŽÍ`;
-        studioBadge.className = "px-3.5 py-1.5 rounded-full bg-yellow-950 text-yellow-400 border border-yellow-700/50 text-xs font-bold flex items-center w-fit";
-        studioBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-yellow-400 mr-2"></span> REKLAMNÁ HUDBA`;
-      } else {
-        breakBtn.className = "w-full bg-yellow-600 hover:bg-yellow-500 text-black font-bold py-2.5 rounded-lg text-xs transition-all flex items-center justify-center shadow";
-        breakBtn.innerHTML = `<i class="fa-solid fa-play mr-1.5"></i> SPUSTIŤ PESNIČKU / REKLAMU`;
-      }
-
-      if (!broadcastState.micActive && !broadcastState.breakActive) {
-        studioBadge.className = "px-3.5 py-1.5 rounded-full bg-gray-800 text-gray-400 text-xs font-bold border border-gray-700 flex items-center w-fit";
-        studioBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-gray-500 mr-2"></span> Vysielanie Vypnuté`;
-      }
-    }
-
-    function changeActiveCommentaryMatch() {
-      const selectedId = document.getElementById('live-match-select').value;
-      window.fbDbUpdate(window.fbDbRef(window.fbDb, 'broadcast'), {
-        activeMatchId: selectedId
-      });
-      showToast('Zmenený zápas pre rádio vysielanie', 'info');
-    }
-
-    // --- ADMIN MATCH MANAGEMENT (REALTIME FIREBASE OPS) ---
-    function populateAdminMatchSelect() {
-      const select = document.getElementById('live-match-select');
-      const matchArray = Object.values(matchesData);
-      select.innerHTML = matchArray.map(m => `
-        <option value="${m.id}" ${broadcastState.activeMatchId === m.id ? 'selected' : ''}>
-          ${m.home} vs ${m.away} (${m.sport})
-        </option>
-      `).join('');
-    }
-
-    function renderAdminMatchesTable() {
-      const tbody = document.getElementById('admin-matches-tbody');
-      const matchArray = Object.values(matchesData);
-
-      tbody.innerHTML = matchArray.map(m => `
-        <tr class="hover:bg-gray-800/40 transition-colors">
-          <td class="p-3">
-            <div class="font-bold text-white">${m.sport}</div>
-            <div class="text-[10px] text-gray-400 font-mono">${m.league}</div>
-          </td>
-          <td class="p-3 font-semibold text-gray-200">
-            ${m.home} <span class="text-gray-500">vs</span> ${m.away}
-          </td>
-          <td class="p-3 text-center">
-            <div class="inline-flex items-center space-x-1 bg-[#121215] p-1 rounded-lg border border-gray-800">
-              <button onclick="updateFirebaseScore('${m.id}', 'home', -1)" class="w-6 h-6 bg-gray-800 hover:bg-gray-700 text-white rounded font-bold">-</button>
-              <span class="font-mono font-bold text-brand-red px-2">${m.scoreHome} : ${m.scoreAway}</span>
-              <button onclick="updateFirebaseScore('${m.id}', 'home', 1)" class="w-6 h-6 bg-gray-800 hover:bg-gray-700 text-white rounded font-bold">+</button>
-            </div>
-          </td>
-          <td class="p-3">
-            <div class="flex items-center space-x-2">
-              <input type="text" value="${m.time}" onchange="updateFirebaseTime('${m.id}', this.value)" class="w-20 bg-[#121215] border border-gray-700 rounded-lg text-center px-1 py-1 text-xs text-white">
-              <select onchange="updateFirebaseStatus('${m.id}', this.value)" class="bg-[#121215] border border-gray-700 rounded-lg text-[11px] text-gray-300 px-2 py-1">
-                <option value="upcoming" ${m.status === 'upcoming' ? 'selected' : ''}>Program</option>
-                <option value="live" ${m.status === 'live' ? 'selected' : ''}>Živý (LIVE)</option>
-                <option value="break" ${m.status === 'break' ? 'selected' : ''}>Prestávka</option>
-                <option value="finished" ${m.status === 'finished' ? 'selected' : ''}>Skončený</option>
-              </select>
-            </div>
-          </td>
-          <td class="p-3 text-center">
-            <div class="flex items-center justify-center space-x-2">
-              <button onclick="addGoalIncident('${m.id}')" class="bg-brand-red/10 text-brand-red hover:bg-brand-red hover:text-white border border-brand-red/30 px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all">
-                + Gól
-              </button>
-              <button onclick="deleteFirebaseMatch('${m.id}')" class="text-gray-500 hover:text-red-400 px-2 py-1">
-                <i class="fa-solid fa-trash text-xs"></i>
-              </button>
-            </div>
-          </td>
-        </tr>
-      `).join('');
-    }
-
-    function updateFirebaseScore(id, team, delta) {
-      const m = matchesData[id];
-      if (!m) return;
-      const newScore = team === 'home' ? Math.max(0, m.scoreHome + delta) : Math.max(0, m.scoreAway + delta);
-      
-      const updateData = {};
-      if (team === 'home') updateData.scoreHome = newScore;
-      else updateData.scoreAway = newScore;
-
-      window.fbDbUpdate(window.fbDbRef(window.fbDb, `matches/${id}`), updateData);
-    }
-
-    function updateFirebaseTime(id, timeVal) {
-      window.fbDbUpdate(window.fbDbRef(window.fbDb, `matches/${id}`), { time: timeVal });
-    }
-
-    function updateFirebaseStatus(id, statusVal) {
-      window.fbDbUpdate(window.fbDbRef(window.fbDb, `matches/${id}`), { status: statusVal });
-    }
-
-    function addGoalIncident(id) {
-      const m = matchesData[id];
-      if (!m) return;
-
-      const events = m.events || [];
-      events.push({
-        minute: m.time || "GÓL",
-        type: "goal",
-        player: "Gól (Admin zápis)",
-        team: "home"
-      });
-
-      window.fbDbUpdate(window.fbDbRef(window.fbDb, `matches/${id}`), {
-        scoreHome: m.scoreHome + 1,
-        events: events
-      });
-
-      triggerSoundEffect('goal');
-      showToast('Gól zapísaný do Firebase!', 'success');
-    }
-
-    function deleteFirebaseMatch(id) {
-      window.fbDbRemove(window.fbDbRef(window.fbDb, `matches/${id}`));
-      showToast('Zápas bol vymazaný z Firebase DB', 'info');
-    }
-
-    function openNewMatchModal() {
-      document.getElementById('new-match-modal').classList.remove('hidden');
-    }
-    function closeNewMatchModal() {
-      document.getElementById('new-match-modal').classList.add('hidden');
-    }
-
-    function saveNewMatch(e) {
-      e.preventDefault();
-      const sport = document.getElementById('form-sport').value;
-      const league = document.getElementById('form-league').value;
-      const home = document.getElementById('form-home').value;
-      const away = document.getElementById('form-away').value;
-      const time = document.getElementById('form-time').value;
-      const status = document.getElementById('form-status').value;
-
-      const newRef = window.fbDbPush(window.fbDbRef(window.fbDb, 'matches'));
-      const newMatchObj = {
-        id: newRef.key,
-        sport,
-        league,
-        home,
-        away,
-        homeLogo: home.substring(0, 3).toUpperCase(),
-        awayLogo: away.substring(0, 3).toUpperCase(),
-        scoreHome: 0,
-        scoreAway: 0,
-        time,
-        status,
-        events: []
-      };
-
-      window.fbDbSet(newRef, newMatchObj);
-      closeNewMatchModal();
-      showToast('Zápas bol vytvorený!', 'success');
-    }
-
-    // --- SYNTHESIZED WEB AUDIO SOUND & MUSIC GENERATOR ---
-    function playSynthesizedSound(type) {
-      if (!audioCtx) return;
-      const now = audioCtx.currentTime;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-
-      if (type === 'goal') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(140, now);
-        osc.frequency.exponentialRampToValueAtTime(320, now + 0.8);
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 1.2);
-        osc.start(now);
-        osc.stop(now + 1.2);
-      } else if (type === 'whistle') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(2300, now);
-        osc.frequency.setValueAtTime(2500, now + 0.1);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-        osc.start(now);
-        osc.stop(now + 0.4);
-      } else if (type === 'cheer') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(350, now);
-        osc.frequency.linearRampToValueAtTime(550, now + 0.6);
-        gain.gain.setValueAtTime(0.25, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.9);
-        osc.start(now);
-        osc.stop(now + 0.9);
-      }
-    }
-
-    function startSynthesizedMusic() {
-      if (!audioCtx || breakMusicOscillator) return;
-      const now = audioCtx.currentTime;
-      breakMusicOscillator = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-
-      breakMusicOscillator.type = 'sine';
-      breakMusicOscillator.frequency.setValueAtTime(261.63, now); // C4
-      breakMusicOscillator.frequency.setValueAtTime(329.63, now + 0.5); // E4
-      breakMusicOscillator.frequency.setValueAtTime(392.00, now + 1.0); // G4
-      breakMusicOscillator.frequency.setValueAtTime(523.25, now + 1.5); // C5
-
-      gain.gain.setValueAtTime(0.06, now);
-      breakMusicOscillator.connect(gain);
-      gain.connect(audioCtx.destination);
-      breakMusicOscillator.start();
-    }
-
-    function stopSynthesizedMusic() {
-      if (breakMusicOscillator) {
-        try {
-          breakMusicOscillator.stop();
-          breakMusicOscillator.disconnect();
-        } catch(e){}
-        breakMusicOscillator = null;
-      }
-    }
-
-    // --- TOAST NOTIFICATION ---
-    function showToast(msg, type = 'info') {
-      const toast = document.getElementById('global-toast');
-      const text = document.getElementById('toast-message');
-      const icon = document.getElementById('toast-icon');
-
-      text.innerText = msg;
-
-      if (type === 'success') {
-        icon.className = "fa-solid fa-circle-check text-brand-green text-lg";
-        toast.className = toast.className.replace(/border-[a-z]+/, 'border-brand-green');
-      } else {
-        icon.className = "fa-solid fa-circle-info text-brand-red text-lg";
-        toast.className = toast.className.replace(/border-[a-z]+/, 'border-brand-red');
-      }
-
-      toast.classList.remove('hidden');
-      setTimeout(() => {
-        toast.classList.add('hidden');
-      }, 3200);
-    }
-  </script>
+        function toggleAudio() {
+            const btn = document.getElementById('audio-toggle-btn');
+            isPlaying = !isPlaying;
+            if (isPlaying) {
+                btn.innerHTML = '<i class="fa-solid fa-pause"></i> PAUZA';
+                btn.style.background = '#444';
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-volume-high"></i> POČÚVAŤ';
+                btn.style.background = 'var(--accent-red)';
+            }
+        }
+    </script>
 </body>
-</html>
+  </html>
