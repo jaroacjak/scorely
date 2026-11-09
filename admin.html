@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scorly Admin Štúdio</title>
+    <title>Scorly Admin - Štúdio a Správa</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -19,10 +19,10 @@
             --border-color: #2a313a;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: var(--bg-body); color: var(--text-main); padding: 20px; }
 
-        .admin-box { max-width: 900px; margin: 0 auto; }
+        .admin-box { max-width: 900px; margin: 0 auto; display: none; }
         .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
         h2 { font-size: 16px; margin-bottom: 15px; color: #fff; display: flex; align-items: center; gap: 8px; }
 
@@ -30,67 +30,76 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--bg-body); z-index: 1000; display: flex; align-items: center; justify-content: center;
         }
-        .login-card { background: var(--bg-card); padding: 30px; border-radius: 8px; border: 1px solid var(--border-color); width: 320px; text-align: center; }
+        .login-card { background: var(--bg-card); padding: 30px; border-radius: 8px; border: 1px solid var(--border-color); width: 340px; text-align: center; }
 
         input, select, button {
             width: 100%; padding: 10px; margin-top: 8px;
             border-radius: 4px; border: 1px solid var(--border-color); background: #111418; color: #fff; outline: none;
         }
 
-        button { background: var(--accent-red); border: none; font-weight: bold; cursor: pointer; }
+        button { background: var(--accent-red); border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
         button:hover { opacity: 0.9; }
 
         .btn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
         .btn-green { background: var(--accent-green); color: #000; }
         .btn-yellow { background: var(--accent-yellow); color: #000; }
         .btn-dark { background: #333; }
+        .btn-green.active, .btn-yellow.active, .btn-dark.active { outline: 2px solid #fff; }
 
         .match-row-admin { background: #111418; border: 1px solid var(--border-color); border-radius: 6px; padding: 15px; margin-bottom: 10px; }
         .ctrl-group { display: flex; gap: 6px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
         .ctrl-group button { width: auto; padding: 6px 12px; margin: 0; }
-        .sm-input { width: 70px !important; display: inline-block; padding: 5px; }
+        .sm-input { width: 70px !important; display: inline-block; padding: 5px; margin: 0; text-align: center; }
+        
+        .mic-meter { height: 6px; background: #222; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+        .mic-level { height: 100%; width: 0%; background: var(--accent-green); transition: width 0.1s; }
     </style>
 </head>
 <body>
 
-    <!-- Login -->
+    <!-- Prihlasovací Modul -->
     <div id="login-overlay">
         <div class="login-card">
             <h2 style="justify-content: center;"><i class="fa-solid fa-lock"></i> Scorly Admin</h2>
             <input type="password" id="admin-pass" placeholder="Vlož heslo (admin123)">
-            <button onclick="login()">PRIHLÁSIŤ SA</button>
+            <button onclick="login()"><i class="fa-solid fa-right-to-bracket"></i> PRIHLÁSIŤ SA</button>
             <div id="login-error" style="color:red; font-size:12px; margin-top:10px;"></div>
         </div>
     </div>
 
-    <!-- Admin Body -->
-    <div class="admin-box">
+    <!-- Hlavné Administrátorské Štúdio -->
+    <div class="admin-box" id="admin-content">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h1>Vysielacie Štúdio & Správa</h1>
-            <a href="index.html" style="color:var(--text-muted); text-decoration:none;"><i class="fa-solid fa-eye"></i> Prejsť na hlavný web</a>
+            <h1>Vysielacie Štúdio & Správa Zápasov</h1>
+            <a href="index.html" style="color:var(--text-muted); text-decoration:none;"><i class="fa-solid fa-eye"></i> Prejsť na web</a>
         </div>
 
-        <!-- Audio Studio -->
+        <!-- Live Audio & Reklama Panel -->
         <div class="card">
             <h2><i class="fa-solid fa-microphone"></i> Audio Vysielanie & Reklama</h2>
             <div class="btn-grid">
-                <button onclick="setBroadcastMode('mic')" class="btn-green"><i class="fa-solid fa-microphone"></i> Mikrofón (Živo)</button>
-                <button onclick="setBroadcastMode('music')" class="btn-yellow"><i class="fa-solid fa-music"></i> Reklama / Hudba</button>
-                <button onclick="setBroadcastMode('off')" class="btn-dark"><i class="fa-solid fa-power-off"></i> Vypnúť Audio</button>
+                <button id="btn-mic" onclick="setBroadcastMode('mic')" class="btn-green"><i class="fa-solid fa-microphone"></i> Zapnúť Mikrofón</button>
+                <button id="btn-music" onclick="setBroadcastMode('music')" class="btn-yellow"><i class="fa-solid fa-music"></i> Reklama / Hudba</button>
+                <button id="btn-off" onclick="setBroadcastMode('off')" class="btn-dark"><i class="fa-solid fa-power-off"></i> Vypnúť Audio</button>
+            </div>
+
+            <div class="mic-meter">
+                <div id="mic-bar" class="mic-level"></div>
             </div>
             
             <div style="margin-top:15px; border-top:1px solid var(--border-color); padding-top:12px;">
-                <label style="font-size:12px; color:var(--text-muted);">Odoslať Štadiónový Zvukový Efekt:</label>
+                <label style="font-size:12px; color:var(--text-muted);">Okamžité Zvukové Efekty (SFX):</label>
                 <div style="display:flex; gap:8px; margin-top:6px;">
                     <button onclick="triggerSFX('goal')" class="btn-dark"><i class="fa-solid fa-bullhorn"></i> Gól Klaksón</button>
                     <button onclick="triggerSFX('whistle')" class="btn-dark"><i class="fa-solid fa-volume-high"></i> Píšťalka</button>
+                    <button onclick="triggerSFX('applause')" class="btn-dark"><i class="fa-solid fa-hands-clapping"></i> Potlesk</button>
                 </div>
             </div>
         </div>
 
-        <!-- Create Match -->
+        <!-- Pridanie zápasu -->
         <div class="card">
-            <h2><i class="fa-solid fa-plus"></i> Nový Zápas</h2>
+            <h2><i class="fa-solid fa-plus"></i> Pridať Nový Zápas</h2>
             <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;">
                 <input type="text" id="new-home" placeholder="Domáci tím">
                 <input type="text" id="new-away" placeholder="Hostia tím">
@@ -100,13 +109,13 @@
                     <option value="TENIS">Tenis</option>
                 </select>
             </div>
-            <button onclick="createMatch()"><i class="fa-solid fa-save"></i> Uložiť nový zápas</button>
+            <button onclick="createMatch()"><i class="fa-solid fa-save"></i> Vytvoriť Zápas</button>
         </div>
 
-        <!-- Manage Matches -->
+        <!-- Zoznam a úprava zápasov -->
         <div class="card">
-            <h2><i class="fa-solid fa-list-check"></i> Správa Zápasov & Udalostí</h2>
-            <div id="matches-list">Načítavam...</div>
+            <h2><i class="fa-solid fa-list-check"></i> Živé Ovládanie Zápasov</h2>
+            <div id="matches-list">Načítavam z databázy...</div>
         </div>
     </div>
 
@@ -125,17 +134,55 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        let micStream = null;
+
         function login() {
             const pass = document.getElementById('admin-pass').value;
             if (pass === 'admin123') {
                 document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('admin-content').style.display = 'block';
             } else {
-                document.getElementById('login-error').innerText = "Chybné heslo! Zadať: admin123";
+                document.getElementById('login-error').innerText = "Chybné heslo! Zadaj: admin123";
             }
         }
 
-        function setBroadcastMode(mode) {
+        async function setBroadcastMode(mode) {
             db.ref('broadcast').update({ mode: mode, time: Date.now() });
+
+            document.querySelectorAll('.btn-grid button').forEach(b => b.classList.remove('active'));
+            if(mode === 'mic') document.getElementById('btn-mic').classList.add('active');
+            if(mode === 'music') document.getElementById('btn-music').classList.add('active');
+            if(mode === 'off') document.getElementById('btn-off').classList.add('active');
+
+            if (mode === 'mic') {
+                try {
+                    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    startMicVisualization();
+                } catch(e) {
+                    alert('Mikrofón sa nepodarilo aktivovať: ' + e.message);
+                }
+            } else {
+                document.getElementById('mic-bar').style.width = '0%';
+            }
+        }
+
+        function startMicVisualization() {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const source = ctx.createMediaStreamSource(micStream);
+            const analyser = ctx.createAnalyser();
+            analyser.fftSize = 64;
+            source.connect(analyser);
+            const data = new Uint8Array(analyser.frequencyBinCount);
+
+            function update() {
+                analyser.getByteFrequencyData(data);
+                let sum = 0;
+                for(let i=0; i<data.length; i++) sum += data[i];
+                let avg = sum / data.length;
+                document.getElementById('mic-bar').style.width = Math.min(100, avg * 2) + '%';
+                if (micStream && micStream.active) requestAnimationFrame(update);
+            }
+            update();
         }
 
         function triggerSFX(type) {
@@ -166,7 +213,7 @@
                 const m = matches[id];
                 container.innerHTML += `
                     <div class="match-row-admin">
-                        <div style="display:flex; justify-content:space-between;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
                             <strong>${m.teamHome} vs ${m.teamAway} (${m.sport})</strong>
                             <button onclick="deleteMatch('${id}')" style="width:auto; padding:3px 8px; background:#aa0000;">Zmazať</button>
                         </div>
@@ -174,20 +221,20 @@
                             <span>Skóre:</span>
                             <button onclick="adjScore('${id}', 'home', 1)">+1 D</button>
                             <button onclick="adjScore('${id}', 'home', -1)">-1 D</button>
-                            <strong>${m.scoreHome} : ${m.scoreAway}</strong>
+                            <strong style="font-size:16px;">${m.scoreHome} : ${m.scoreAway}</strong>
                             <button onclick="adjScore('${id}', 'away', 1)">+1 H</button>
                             <button onclick="adjScore('${id}', 'away', -1)">-1 H</button>
 
                             <span style="margin-left:15px;">Čas:</span>
-                            <input type="text" value="${m.time}" class="sm-input" onchange="updateTime('${id}', this.value)">
-                            
-                            <button onclick="toggleStatus('${id}', '${m.status}')" class="btn-dark">${m.status}</button>
+                            <input type="text" value="${m.time}" class="sm-input" onchange="updateTime('${id}', this.value)">'
+
+                            <button onclick="toggleStatus('${id}', '${m.status}')" class="btn-dark" style="margin-left:10px;">${m.status}</button>
                         </div>
 
                         <div style="margin-top:10px; border-top:1px solid #222; padding-top:8px;">
-                            <span style="font-size:12px; color:var(--text-muted);">Pridať Udalosť (Gól / Karta):</span>
+                            <span style="font-size:12px; color:var(--text-muted);">Pridať Udalosť (Gól / Karta / Striedanie):</span>
                             <div style="display:flex; gap:5px; margin-top:4px;">
-                                <input type="text" id="ev-txt-${id}" placeholder="napr. Gól: J. Novák" style="margin:0; flex:1;">
+                                <input type="text" id="ev-txt-${id}" placeholder="napr. 15' Gól - J. Novák" style="margin:0; flex:1;">
                                 <button onclick="addEvent('${id}')" style="width:auto; margin:0;">+ Pridať</button>
                             </div>
                         </div>
