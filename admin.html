@@ -6,10 +6,9 @@
     <title>Scorly Admin - Štúdio a Správa</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Firebase SDK (Compat verzie pre jednoduché použitie v jednom HTML) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     
     <style>
         :root {
@@ -23,7 +22,7 @@
             --border-color: #2a313a;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
         body { background-color: var(--bg-body); color: var(--text-main); padding: 20px; }
 
         .admin-box { max-width: 900px; margin: 0 auto; display: none; }
@@ -48,12 +47,12 @@
         .btn-green { background: var(--accent-green); color: #000; }
         .btn-yellow { background: var(--accent-yellow); color: #000; }
         .btn-dark { background: #333; }
-        .btn-green.active, .btn-yellow.active, .btn-dark.active { outline: 2px solid #fff; }
+        .btn-green.active, .btn-yellow.active { outline: 2px solid #fff; }
 
         .match-row-admin { background: #111418; border: 1px solid var(--border-color); border-radius: 6px; padding: 15px; margin-bottom: 10px; }
         .ctrl-group { display: flex; gap: 6px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
         .ctrl-group button { width: auto; padding: 6px 12px; margin: 0; }
-        .sm-input { width: 70px !important; display: inline-block; padding: 5px; margin: 0; text-align: center; }
+        .sm-input { width: 90px !important; display: inline-block; padding: 5px; margin: 0; text-align: center; }
         
         .mic-meter { height: 6px; background: #222; border-radius: 3px; margin-top: 10px; overflow: hidden; }
         .mic-level { height: 100%; width: 0%; background: var(--accent-green); transition: width 0.1s; }
@@ -61,30 +60,28 @@
 </head>
 <body>
 
-    <!-- Prihlasovací Modul -->
     <div id="login-overlay">
         <div class="login-card">
             <h2 style="justify-content: center;"><i class="fa-solid fa-lock"></i> Scorly Admin</h2>
-            <input type="email" id="admin-email" placeholder="Email (voliteľné pre Auth)" style="margin-bottom:4px;">
-            <input type="password" id="admin-pass" placeholder="Heslo (alebo zadej: admin123)">
+            <input type="password" id="admin-pass" placeholder="Vlož heslo (admin123)">
             <button onclick="login()"><i class="fa-solid fa-right-to-bracket"></i> PRIHLÁSIŤ SA</button>
             <div id="login-error" style="color:red; font-size:12px; margin-top:10px;"></div>
         </div>
     </div>
 
-    <!-- Hlavné Administrátorské Štúdio -->
     <div class="admin-box" id="admin-content">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <h1>Vysielacie Štúdio & Správa Zápasov</h1>
-            <div style="display:flex; gap:10px; align-items:center;">
-                <a href="index.html" style="color:var(--text-muted); text-decoration:none;"><i class="fa-solid fa-eye"></i> Späť na web</a>
-                <button onclick="logout()" style="width:auto; padding:6px 12px; background:#444;"><i class="fa-solid fa-right-from-bracket"></i></button>
-            </div>
+            <a href="index.html" style="color:var(--text-muted); text-decoration:none;"><i class="fa-solid fa-eye"></i> Prejsť na web</a>
         </div>
 
-        <!-- Live Audio & Reklama Panel -->
         <div class="card">
-            <h2><i class="fa-solid fa-microphone"></i> Audio Vysielanie & Reklama</h2>
+            <h2><i class="fa-solid fa-microphone"></i> Audio Komentár & Výber Zápasu na Vysielanie</h2>
+            <label style="font-size:12px; color:var(--text-muted);">Ktorý zápas práve komentuješ?</label>
+            <select id="active-match-select" style="margin-bottom:12px;">
+                <option value="">-- Žiadny zápas (iba hudba/reklama) --</option>
+            </select>
+
             <div class="btn-grid">
                 <button id="btn-mic" onclick="setBroadcastMode('mic')" class="btn-green"><i class="fa-solid fa-microphone"></i> Zapnúť Mikrofón</button>
                 <button id="btn-music" onclick="setBroadcastMode('music')" class="btn-yellow"><i class="fa-solid fa-music"></i> Reklama / Hudba</button>
@@ -94,33 +91,22 @@
             <div class="mic-meter">
                 <div id="mic-bar" class="mic-level"></div>
             </div>
-            
-            <div style="margin-top:15px; border-top:1px solid var(--border-color); padding-top:12px;">
-                <label style="font-size:12px; color:var(--text-muted);">Okamžité Zvukové Efekty (SFX):</label>
-                <div style="display:flex; gap:8px; margin-top:6px;">
-                    <button onclick="triggerSFX('goal')" class="btn-dark"><i class="fa-solid fa-bullhorn"></i> Gól Klaksón</button>
-                    <button onclick="triggerSFX('whistle')" class="btn-dark"><i class="fa-solid fa-volume-high"></i> Píšťalka</button>
-                    <button onclick="triggerSFX('applause')" class="btn-dark"><i class="fa-solid fa-hands-clapping"></i> Potlesk</button>
-                </div>
-            </div>
         </div>
 
-        <!-- Pridanie zápasu -->
         <div class="card">
-            <h2><i class="fa-solid fa-plus"></i> Pridať Nový Zápas</h2>
-            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;">
-                <input type="text" id="new-home" placeholder="Domáci tím">
-                <input type="text" id="new-away" placeholder="Hostia tím">
+            <h2><i class="fa-solid fa-plus"></i> Pridať Nový Zápas (s Dátumom)</h2>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:8px;">
+                <input type="text" id="new-home" placeholder="Domáci">
+                <input type="text" id="new-away" placeholder="Hostia">
+                <input type="text" id="new-date" placeholder="Dátum (09.11.)" value="09.11.2026">
                 <select id="new-sport">
-                    <option value="FUTBAL">Futbal</option>
                     <option value="HOKEJ">Hokej</option>
-                    <option value="TENIS">Tenis</option>
+                    <option value="FUTBAL">Futbal</option>
                 </select>
             </div>
             <button onclick="createMatch()"><i class="fa-solid fa-save"></i> Vytvoriť Zápas</button>
         </div>
 
-        <!-- Zoznam a úprava zápasov -->
         <div class="card">
             <h2><i class="fa-solid fa-list-check"></i> Živé Ovládanie Zápasov</h2>
             <div id="matches-list">Načítavam z databázy...</div>
@@ -135,55 +121,49 @@
             projectId: "scorely-fff98",
             storageBucket: "scorely-fff98.firebasestorage.app",
             messagingSenderId: "1094795512385",
-            appId: "1:1094795512385:web:2c4785b37cc7063bac14c0",
-            measurementId: "G-CNFL3RQ8FL"
+            appId: "1:1094795512385:web:2c4785b37cc7063bac14c0"
         };
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        const auth = firebase.auth();
 
         let micStream = null;
-
-        // Kontrola Firebase Auth stavu
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                showAdminPanel();
-            }
-        });
+        let adminPeer = null;
+        let currentStream = null;
 
         function login() {
-            const email = document.getElementById('admin-email').value;
             const pass = document.getElementById('admin-pass').value;
-
-            if (email && pass) {
-                auth.signInWithEmailAndPassword(email, pass)
-                    .then(() => showAdminPanel())
-                    .catch(err => {
-                        document.getElementById('login-error').innerText = "Chyba prihlásenia: " + err.message;
-                    });
-            } else if (pass === 'admin123') {
-                showAdminPanel();
+            if (pass === 'admin123') {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('admin-content').style.display = 'block';
+                initPeerServer();
+                listenToDatabase();
             } else {
-                document.getElementById('login-error').innerText = "Chybné heslo! Zadaj: admin123 alebo použij Firebase Email/Heslo";
+                document.getElementById('login-error').innerText = "Chybné heslo! Zadaj: admin123";
             }
         }
 
-        function logout() {
-            auth.signOut().then(() => {
-                document.getElementById('login-overlay').style.display = 'flex';
-                document.getElementById('admin-content').style.display = 'none';
+        function initPeerServer() {
+            adminPeer = new Peer('scorly-admin-studio');
+            adminPeer.on('call', call => {
+                if(currentStream) {
+                    call.answer(currentStream);
+                }
             });
         }
 
-        function showAdminPanel() {
-            document.getElementById('login-overlay').style.display = 'none';
-            document.getElementById('admin-content').style.display = 'block';
-            listenToDatabase();
-        }
-
         async function setBroadcastMode(mode) {
-            db.ref('broadcast').update({ mode: mode, updatedAt: Date.now() });
+            const activeMatchId = document.getElementById('active-match-select').value;
+            
+            db.ref('broadcast').update({ mode: mode, activeMatch: activeMatchId, updatedAt: Date.now() });
+
+            // Označenie v databáze pre konkrétny zápas, že prebieha komentár
+            db.ref('matches').once('value', snap => {
+                const matches = snap.val() || {};
+                for(let id in matches) {
+                    db.ref(`matches/${id}`).update({ commentating: (id === activeMatchId && mode === 'mic') });
+                }
+            });
 
             document.querySelectorAll('.btn-grid button').forEach(b => b.classList.remove('active'));
             if(mode === 'mic') document.getElementById('btn-mic').classList.add('active');
@@ -193,6 +173,7 @@
             if (mode === 'mic') {
                 try {
                     micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    currentStream = micStream;
                     startMicVisualization();
                 } catch(e) {
                     alert('Mikrofón sa nepodarilo aktivovať: ' + e.message);
@@ -201,6 +182,7 @@
                 if (micStream) {
                     micStream.getTracks().forEach(track => track.stop());
                     micStream = null;
+                    currentStream = null;
                 }
                 document.getElementById('mic-bar').style.width = '0%';
             }
@@ -225,19 +207,16 @@
             update();
         }
 
-        function triggerSFX(type) {
-            db.ref('broadcast/sfx').set({ type: type, time: Date.now() });
-        }
-
         function createMatch() {
             const home = document.getElementById('new-home').value;
             const away = document.getElementById('new-away').value;
+            const date = document.getElementById('new-date').value;
             const sport = document.getElementById('new-sport').value;
             if (!home || !away) return;
 
             db.ref('matches').push({
-                teamHome: home, teamAway: away, sport: sport,
-                scoreHome: 0, scoreAway: 0, status: 'LIVE', time: '1', events: []
+                teamHome: home, teamAway: away, sport: sport, date: date,
+                scoreHome: 0, scoreAway: 0, status: 'LIVE', time: '1', events: [], commentating: false
             });
 
             document.getElementById('new-home').value = '';
@@ -248,19 +227,21 @@
             db.ref('matches').on('value', snap => {
                 const matches = snap.val() || {};
                 const container = document.getElementById('matches-list');
+                const select = document.getElementById('active-match-select');
+                
                 container.innerHTML = '';
-
-                if (Object.keys(matches).length === 0) {
-                    container.innerHTML = '<div style="color:var(--text-muted); padding:10px;">Žiadne aktívne zápasy. Pridaj prvý vyššie.</div>';
-                    return;
-                }
+                select.innerHTML = '<option value="">-- Žiadny zápas (iba hudba/reklama) --</option>';
 
                 for (let id in matches) {
                     const m = matches[id];
+                    
+                    // Naplnenie výberu pre komentár
+                    select.innerHTML += `<option value="${id}">${m.date} - ${m.teamHome} vs ${m.teamAway}</option>`;
+
                     container.innerHTML += `
                         <div class="match-row-admin">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <strong>${m.teamHome} vs ${m.teamAway} (${m.sport || 'FUTBAL'})</strong>
+                                <strong>[${m.date}] ${m.teamHome} vs ${m.teamAway}</strong>
                                 <button onclick="deleteMatch('${id}')" style="width:auto; padding:3px 8px; background:#aa0000;">Zmazať</button>
                             </div>
                             <div class="ctrl-group">
@@ -271,18 +252,10 @@
                                 <button onclick="adjScore('${id}', 'away', 1)">+1 H</button>
                                 <button onclick="adjScore('${id}', 'away', -1)">-1 H</button>
 
-                                <span style="margin-left:15px;">Čas:</span>
-                                <input type="text" value="${m.time}" class="sm-input" onchange="updateTime('${id}', this.value)">'
+                                <span style="margin-left:10px;">Čas:</span>
+                                <input type="text" value="${m.time}" class="sm-input" onchange="updateField('${id}', 'time', this.value)">'
 
-                                <button onclick="toggleStatus('${id}', '${m.status}')" class="btn-dark" style="margin-left:10px;">${m.status}</button>
-                            </div>
-
-                            <div style="margin-top:10px; border-top:1px solid #222; padding-top:8px;">
-                                <span style="font-size:12px; color:var(--text-muted);">Pridať Udalosť (Gól / Karta / Striedanie):</span>
-                                <div style="display:flex; gap:5px; margin-top:4px;">
-                                    <input type="text" id="ev-txt-${id}" placeholder="napr. 15' Gól - J. Novák" style="margin:0; flex:1;">
-                                    <button onclick="addEvent('${id}')" style="width:auto; margin:0;">+ Pridať</button>
-                                </div>
+                                <button onclick="toggleStatus('${id}', '${m.status}')" class="btn-dark" style="margin-left:5px;">${m.status}</button>
                             </div>
                         </div>
                     `;
@@ -291,31 +264,16 @@
         }
 
         function adjScore(id, team, delta) {
-            const ref = db.ref(`matches/${id}`);
-            ref.once('value', snap => {
+            db.ref(`matches/${id}`).once('value', snap => {
                 const m = snap.val();
-                if (team === 'home') ref.update({ scoreHome: Math.max(0, m.scoreHome + delta) });
-                if (team === 'away') ref.update({ scoreAway: Math.max(0, m.scoreAway + delta) });
+                if (team === 'home') db.ref(`matches/${id}`).update({ scoreHome: Math.max(0, m.scoreHome + delta) });
+                if (team === 'away') db.ref(`matches/${id}`).update({ scoreAway: Math.max(0, m.scoreAway + delta) });
             });
         }
 
-        function updateTime(id, timeVal) { db.ref(`matches/${id}`).update({ time: timeVal }); }
+        function updateField(id, field, val) { db.ref(`matches/${id}`).update({ [field]: val }); }
         function toggleStatus(id, current) { db.ref(`matches/${id}`).update({ status: current === 'LIVE' ? 'KONIEC' : 'LIVE' }); }
         function deleteMatch(id) { db.ref(`matches/${id}`).remove(); }
-
-        function addEvent(id) {
-            const txt = document.getElementById(`ev-txt-${id}`).value;
-            if (!txt) return;
-
-            const ref = db.ref(`matches/${id}`);
-            ref.once('value', snap => {
-                const m = snap.val();
-                const events = m.events || [];
-                events.push({ time: m.time || '1', text: txt, type: 'Udalosť' });
-                ref.update({ events: events });
-                document.getElementById(`ev-txt-${id}`).value = '';
-            });
-        }
     </script>
 </body>
 </html>
