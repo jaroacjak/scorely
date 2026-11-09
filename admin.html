@@ -1231,3 +1231,114 @@ async function stopMusic() {
 async function setAudioMode(mode) {
   try {
     await api("/api/admin/audio/mode", {
+      method:"POST",
+      body:JSON.stringify({mode})
+    });
+
+    if (mode === "muted") {
+      if (localAudioTrack) await localAudioTrack.mute();
+      if (musicTrack) await musicTrack.mute();
+    }
+
+    if (mode === "commentary") {
+      if (musicTrack) await musicTrack.mute();
+      if (localAudioTrack) await localAudioTrack.unmute();
+    }
+
+    if (mode === "music") {
+      if (localAudioTrack) await localAudioTrack.mute();
+      if (musicTrack) await musicTrack.unmute();
+    }
+
+    const labels = {
+      commentary:"Komentovanie",
+      music:"Hudba",
+      muted:"Stlmené"
+    };
+
+    document.getElementById("audioModeStatus").textContent = labels[mode] || mode;
+  } catch (error) {
+    notice(error.message, "error");
+  }
+}
+
+/* PLÁNOVANIE VYSIELANIA */
+
+async function saveSchedule() {
+  const schedule = {
+    startAt:document.getElementById("broadcastStart").value,
+    durationMinutes:Number(document.getElementById("broadcastDuration").value),
+    breakStartMinutes:Number(document.getElementById("breakStart").value),
+    breakDurationMinutes:Number(document.getElementById("breakDuration").value)
+  };
+
+  if (!schedule.startAt || schedule.durationMinutes < 1) {
+    return notice("Vyplň začiatok a platné trvanie vysielania.", "error");
+  }
+
+  if (schedule.breakStartMinutes < 0 || schedule.breakDurationMinutes < 0) {
+    return notice("Čas prestávky nemôže byť záporný.", "error");
+  }
+
+  try {
+    await api("/api/admin/audio/schedule", {
+      method:"POST",
+      body:JSON.stringify(schedule)
+    });
+
+    notice("Plán vysielania bol uložený na serveri.");
+  } catch (error) {
+    notice(error.message, "error");
+  }
+}
+
+async function stopBroadcast() {
+  if (!confirm("Naozaj chceš zastaviť vysielanie?")) return;
+
+  try {
+    await api("/api/admin/audio/stop", {method:"POST"});
+    await stopMic();
+    await stopMusic();
+    notice("Vysielanie bolo zastavené.");
+  } catch (error) {
+    notice(error.message, "error");
+  }
+}
+
+/* POMOCNÉ FUNKCIE */
+
+function updateStats() {
+  document.getElementById("statMatches").textContent = matches.length;
+  document.getElementById("statLive").textContent =
+    matches.filter(item => item.status === "live").length;
+  document.getElementById("statSports").textContent = sports.length;
+  document.getElementById("statCompetitions").textContent = competitions.length;
+}
+
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#39;"
+  }[char]));
+}
+
+function escapeAttr(value) {
+  return escapeHTML(value).replace(/`/g, "&#96;");
+}
+
+function toLocalDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60000);
+  return local.toISOString().slice(0,16);
+}
+
+</script>
+</body>
+</html>
