@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SCORELY – Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+<style>
+:root{--bg:#090d18;--panel:#111827;--panel2:#182235;--border:#27344b;--text:#f4f7fc;--muted:#93a1b8;--blue:#3478f6;--green:#16c784;--red:#ef5350}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer;border:0;border-radius:8px;padding:11px 15px;color:white;background:var(--blue);font-weight:700}
+button.secondary{background:#344158}button.danger{background:#bd3e45}button.success{background:#118c61}
+input,select,textarea{width:100%;padding:12px;border-radius:8px;border:1px solid var(--border);background:#0c1423;color:white;margin:6px 0 13px}
+textarea{min-height:90px}
+label{font-size:13px;color:var(--muted)}
+h1,h2,h3{margin-top:0}
+.muted{color:var(--muted)}
+#loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{width:100%;max-width:420px;background:var(--panel);border:1px solid var(--border);padding:30px;border-radius:18px}
+.logo{font-size:30px;font-weight:900;letter-spacing:2px;margin-bottom:8px}
+.logo span{color:var(--blue)}
+#app{display:none;min-height:100vh}
+.sidebar{width:245px;background:#0d1422;border-right:1px solid var(--border);padding:20px;position:fixed;top:0;bottom:0;left:0;overflow-y:auto}
+.sidebar .logo{margin:10px 0 30px}
+.nav-btn{display:block;width:100%;text-align:left;background:transparent;color:#b8c4d8;margin:5px 0;padding:13px}
+.nav-btn.active,.nav-btn:hover{background:#1b2c49;color:white}
+.main{margin-left:245px;padding:28px;max-width:1500px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:25px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:20px;margin-bottom:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
+.stat{background:var(--panel2);padding:20px;border-radius:12px}
+.stat strong{font-size:30px;display:block;margin-top:8px}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th,td{text-align:left;padding:12px;border-bottom:1px solid var(--border);font-size:13px}
+th{color:var(--muted)}
+.status{display:inline-block;padding:5px 9px;border-radius:20px;background:#344158;font-size:11px;font-weight:bold}
+.status.live{background:#8e252d}.status.finished{background:#14583f}
+.notice{padding:12px;border-radius:8px;background:#182b48;margin:12px 0;display:none}
+.notice.error{background:#51242b}.notice.success{background:#14583f}
+.section{display:none}.section.active{display:block}
+.audio-state{padding:12px;border-radius:8px;background:#0c1423;margin:10px 0}
+@media(max-width:800px){.sidebar{position:relative;width:100%;border-right:0;border-bottom:1px solid var(--border)}.main{margin-left:0;padding:16px}.sidebar nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}.nav-btn{font-size:12px;padding:10px}}
+</style>
+</head>
+<body>
+<div id="loginScreen">
+ <div class="login-card">
+  <div class="logo">SCORE<span>LY</span></div><h2>Administrácia</h2>
+  <p class="muted">Prihlásenie administrátora</p>
+  <div id="loginNotice" class="notice"></div>
+  <label>E-mail</label><input id="email" type="email" placeholder="admin@example.com">
+  <label>Heslo</label><input id="password" type="password" placeholder="Heslo">
+  <button style="width:100%" onclick="login()">Prihlásiť sa</button>
+ </div>
+</div>
+<div id="app">
+ <aside class="sidebar">
+  <div class="logo">SCORE<span>LY</span></div>
+  <nav>
+   <button class="nav-btn active" data-page="dashboard" onclick="showPage('dashboard',this)">Dashboard</button>
+   <button class="nav-btn" data-page="matches" onclick="showPage('matches',this)">Zápasy</button>
+   <button class="nav-btn" data-page="sports" onclick="showPage('sports',this)">Športy</button>
+   <button class="nav-btn" data-page="competitions" onclick="showPage('competitions',this)">Súťaže a ligy</button>
+   <button class="nav-btn" data-page="website" onclick="showPage('website',this)">Nastavenia webu</button>
+   <button class="nav-btn" data-page="audio" onclick="showPage('audio',this)">LIVE audio</button>
+  </nav>
+  <button class="danger" style="width:100%;margin-top:25px" onclick="logout()">Odhlásiť sa</button>
+ </aside>
+ <main class="main">
+  <div class="topbar"><div><h1 id="pageTitle">Dashboard</h1><small class="muted">Administrátorský panel SCORELY</small></div><button class="secondary" onclick="refreshAll()">Obnoviť údaje</button></div>
+  <div id="globalNotice" class="notice"></div>
+  <section id="dashboard" class="section active">
+   <div class="grid">
+    <div class="stat">Všetky zápasy<strong id="statMatches">0</strong></div>
+    <div class="stat">LIVE zápasy<strong id="statLive">0</strong></div>
+    <div class="stat">Športy<strong id="statSports">0</strong></div>
+    <div class="stat">Súťaže<strong id="statCompetitions">0</strong></div>
+   </div>
+   <div class="panel" style="margin-top:20px"><h3>Rýchle akcie</h3><div class="actions"><button onclick="showPage('matches')">Pridať zápas</button><button class="secondary" onclick="showPage('audio')">LIVE audio</button><button class="secondary" onclick="refreshAll()">Obnoviť</button></div></div>
+  </section>
+  <section id="matches" class="section">
+   <div class="panel">
+    <h2 id="matchFormTitle">Pridať zápas</h2><input type="hidden" id="matchId">
+    <div class="form-grid">
+     <div><label>Domáci tím</label><input id="homeTeam"></div><div><label>Hostia</label><input id="awayTeam"></div>
+     <div><label>Šport</label><select id="matchSport"></select></div><div><label>Súťaž</label><select id="matchCompetition"></select></div>
+     <div><label>Dátum a čas</label><input id="matchDate" type="datetime-local"></div>
+     <div><label>Stav zápasu</label><select id="matchStatus"><option value="scheduled">Naplánovaný</option><option value="live">LIVE</option><option value="halftime">Polčas</option><option value="finished">Ukončený</option><option value="postponed">Odložený</option><option value="cancelled">Zrušený</option></select></div>
+     <div><label>Skóre domácich</label><input id="homeScore" type="number" min="0" value="0"></div><div><label>Skóre hostí</label><input id="awayScore" type="number" min="0" value="0"></div>
+     <div><label>Minúta zápasu</label><input id="matchMinute" type="number" min="0"></div>
+    </div>
+    <label>Popis zápasu</label><textarea id="matchDescription"></textarea>
+    <div class="actions"><button onclick="saveMatch()">Uložiť zápas</button><button class="secondary" onclick="clearMatchForm()">Vymazať formulár</button></div>
+   </div>
+   <div class="panel"><h2>Zoznam zápasov</h2><div class="table-wrap"><table><thead><tr><th>Zápas</th><th>Skóre</th><th>Stav</th><th>Dátum</th><th>Akcie</th></tr></thead><tbody id="matchesTable"><tr><td colspan="5">Načítavam...</td></tr></tbody></table></div></div>
+  </section>
+  <section id="sports" class="section">
+   <div class="panel"><h2>Správa športov</h2><input type="hidden" id="sportId"><label>Názov športu</label><input id="sportName" placeholder="Napr. Futbal"><label>Ikona alebo emoji</label><input id="sportIcon" placeholder="⚽"><div class="actions"><button onclick="saveSport()">Uložiť šport</button><button class="secondary" onclick="clearSportForm()">Vymazať</button></div></div>
+   <div class="panel"><h3>Existujúce športy</h3><div id="sportsList"></div></div>
+  </section>
+  <section id="competitions" class="section">
+   <div class="panel"><h2>Správa súťaží a líg</h2><input type="hidden" id="competitionId"><label>Názov súťaže</label><input id="competitionName"><label>Šport</label><select id="competitionSport"></select><label>Krajina alebo región</label><input id="competitionCountry"><div class="actions"><button onclick="saveCompetition()">Uložiť súťaž</button><button class="secondary" onclick="clearCompetitionForm()">Vymazať</button></div></div>
+   <div class="panel"><h3>Existujúce súťaže</h3><div id="competitionsList"></div></div>
+  </section>
+  <section id="website" class="section">
+   <div class="panel"><h2>Nastavenia webu</h2><label>Názov webu</label><input id="siteName" placeholder="SCORELY"><label>Podnadpis</label><input id="siteSubtitle" placeholder="Športové výsledky naživo"><label>Oznam na webe</label><textarea id="siteNotice"></textarea><label><input id="noticeEnabled" type="checkbox" style="width:auto"> Zobraziť oznam na webe</label><button onclick="saveWebsite()">Uložiť nastavenia</button></div>
+  </section>
+  <section id="audio" class="section">
+   <div class="panel"><h2>LIVE audio vysielanie</h2><p class="muted">Pripojenie k LiveKit miestnosti a ovládanie komentovania.</p>
+    <div class="audio-state">Stav pripojenia: <strong id="connectionStatus">Nepripojené</strong><br>Mikrofón: <strong id="micStatus">Vypnutý</strong><br>Režim: <strong id="audioModeStatus">Stlmené</strong></div>
+    <label>LiveKit server URL</label><input id="livekitUrl" placeholder="wss://tvoj-livekit-server"><label>Názov miestnosti</label><input id="livekitRoom" value="scorely-live">
+    <div class="actions"><button onclick="connectLiveKit()">Pripojiť LiveKit</button><button class="danger" onclick="disconnectLiveKit()">Odpojiť</button></div>
+   </div>
+   <div class="panel"><h3>Mikrofón</h3><div class="actions"><button class="success" onclick="startMic()">Zapnúť mikrofón</button><button class="secondary" onclick="toggleMic()">Stlmiť / zapnúť</button><button class="danger" onclick="stopMic()">Vypnúť mikrofón</button></div></div>
+   <div class="panel"><h3>Režim vysielania</h3><div class="actions"><button onclick="setAudioMode('commentary')">Komentovanie</button><button onclick="setAudioMode('music')">Hudba</button><button class="secondary" onclick="setAudioMode('muted')">Stlmiť</button></div></div>
+   <div class="panel"><h3>Hudba počas prestávok</h3><label>Zvukový súbor</label><input type="file" id="musicFile" accept="audio/*"><div class="actions"><button onclick="startMusic()">Spustiť hudbu</button><button class="danger" onclick="stopMusic()">Zastaviť hudbu</button></div><audio id="musicPreview" controls style="width:100%;margin-top:15px"></audio></div>
+   <div class="panel"><h3>Plánovanie vysielania</h3><label>Začiatok vysielania</label><input id="broadcastStart" type="datetime-local"><label>Trvanie vysielania (minúty)</label><input id="broadcastDuration" type="number" min="1" value="120"><label>Začiatok prestávky (minúty od začiatku)</label><input id="breakStart" type="number" min="0" value="45"><label>Dĺžka prestávky (minúty)</label><input id="breakDuration" type="number" min="0" value="15"><div class="actions"><button onclick="saveSchedule()">Uložiť plán vysielania</button><button class="danger" onclick="stopBroadcast()">Zastaviť vysielanie</button></div><p class="muted">Plán musí vykonávať backend na serveri, aj keď je administrácia zatvorená.</p></div>
+  </section>
+ </main>
+</div>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const firebaseConfig={
+ apiKey:"AIzaSyBrbho9N3nrFwPyj9tNylBN8hF2ZMqBeHY",
+ authDomain:"scorely-fff98.firebaseapp.com",
+ databaseURL:"https://scorely-fff98-default-rtdb.firebaseio.com",
+ projectId:"scorely-fff98",
+ storageBucket:"scorely-fff98.firebasestorage.app",
+ messagingSenderId:"1094795512385",
+ appId:"1:1094795512385:web:2c4785b37cc7063bac14c",
+ measurementId:"G-CNFL3RQ8FL"
+};
+const appFirebase=initializeApp(firebaseConfig);
+const auth=getAuth(appFirebase);
+
+/* DOPLŇ URL SVOJHO NASADENÉHO BACKENDU */
+const API="https://YOUR-BACKEND-DOMAIN";
+
+let adminToken=null,matches=[],sports=[],competitions=[],room=null,localAudioTrack=null,musicTrack=null,musicObjectUrl=null;
+Object.assign(window,{login,logout,showPage,refreshAll,saveMatch,clearMatchForm,editMatch,deleteMatch,saveSport,clearSportForm,editSport,deleteSport,saveCompetition,clearCompetitionForm,editCompetition,deleteCompetition,saveWebsite,connectLiveKit,disconnectLiveKit,startMic,toggleMic,stopMic,startMusic,stopMusic,setAudioMode,saveSchedule,stopBroadcast});
+
+function notice(message,type="success",target="globalNotice"){const el=document.getElementById(target);el.textContent=message;el.className="notice "+type;el.style.display="block";setTimeout(()=>el.style.display="none",5000);}
+async function api(path,options={}){if(API.includes("YOUR-BACKEND-DOMAIN"))throw new Error("Najskôr nastav URL backendu v premennej API.");const response=await fetch(API+path,{...options,headers:{"Content-Type":"application/json",...(adminToken?{"Authorization":"Bearer "+adminToken}:{}),...(options.headers||{})}});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.message||data.error||"Chyba servera: "+response.status);return data;}
+
+async function login(){const email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;if(!email||!password)return notice("Vyplň e-mail aj heslo.","error","loginNotice");try{const credential=await signInWithEmailAndPassword(auth,email,password);const idToken=await credential.user.getIdToken();const result=await api("/api/admin/verify",{method:"POST",body:JSON.stringify({idToken})});if(!result.token)throw new Error("Server nepotvrdil administrátorské oprávnenie.");adminToken=result.token;document.getElementById("loginScreen").style.display="none";document.getElementById("app").style.display="block";await refreshAll();notice("Prihlásenie bolo úspešné.");}catch(e){notice(e.message,"error","loginNotice");}}
+async function logout(){try{await signOut(auth);}catch(e){console.error(e);}adminToken=null;document.getElementById("app").style.display="none";document.getElementById("loginScreen").style.display="flex";}
+onAuthStateChanged(auth,user=>{if(!user)adminToken=null;});
+function showPage(page,button){document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".nav-btn").forEach(x=>x.classList.remove("active"));document.getElementById(page).classList.add("active");if(button)button.classList.add("active");else document.querySelector('[data-page="'+page+'"]')?.classList.add("active");const titles={dashboard:"Dashboard",matches:"Zápasy",sports:"Športy",competitions:"Súťaže a ligy",website:"Nastavenia webu",audio:"LIVE audio"};document.getElementById("pageTitle").textContent=titles[page]||"Administrácia";}
+async function refreshAll(){try{await Promise.all([loadMatches(),loadSports(),loadCompetitions(),loadWebsite()]);updateStats();}catch(e){notice(e.message,"error");}}
+
+async function loadMatches(){const d=await api("/api/admin/matches");matches=Array.isArray(d)?d:(d.matches||[]);renderMatches();}
+function renderMatches(){const tbody=document.getElementById("matchesTable");if(!matches.length){tbody.innerHTML='<tr><td colspan="5">Zatiaľ žiadne zápasy.</td></tr>';return;}tbody.innerHTML=matches.map(m=>{const status=escapeHTML(m.status||"scheduled"),date=m.date?new Date(m.date).toLocaleString("sk-SK"):"—";return `<tr><td>${escapeHTML(m.homeTeam||"")} – ${escapeHTML(m.awayTeam||"")}</td><td>${Number(m.homeScore||0)} : ${Number(m.awayScore||0)}</td><td><span class="status ${status}">${escapeHTML(statusLabel(status))}</span></td><td>${escapeHTML(date)}</td><td><div class="actions"><button class="secondary" onclick="editMatch('${escapeAttr(m.id)}')">Upraviť</button><button class="danger" onclick="deleteMatch('${escapeAttr(m.id)}')">Zmazať</button></div></td></tr>`;}).join("");}
+function statusLabel(s){return({scheduled:"Naplánovaný",live:"LIVE",halftime:"Polčas",finished:"Ukončený",postponed:"Odložený",cancelled:"Zrušený"})[s]||s;}
+async function saveMatch(){const id=document.getElementById("matchId").value,match={homeTeam:document.getElementById("homeTeam").value.trim(),awayTeam:document.getElementById("awayTeam").value.trim(),sportId:document.getElementById("matchSport").value,competitionId:document.getElementById("matchCompetition").value,date:document.getElementById("matchDate").value,status:document.getElementById("matchStatus").value,homeScore:Number(document.getElementById("homeScore").value||0),awayScore:Number(document.getElementById("awayScore").value||0),minute:Number(document.getElementById("matchMinute").value||0),description:document.getElementById("matchDescription").value.trim()};if(!match.homeTeam||!match.awayTeam)return notice("Vyplň oba tímy.","error");try{await api(id?"/api/admin/matches/"+encodeURIComponent(id):"/api/admin/matches",{method:id?"PUT":"POST",body:JSON.stringify(match)});clearMatchForm();await loadMatches();updateStats();notice("Zápas bol uložený.");}catch(e){notice(e.message,"error");}}
+function editMatch(id){const m=matches.find(x=>String(x.id)===String(id));if(!m)return;document.getElementById("matchId").value=m.id;document.getElementById("homeTeam").value=m.homeTeam||"";document.getElementById("awayTeam").value=m.awayTeam||"";document.getElementById("matchSport").value=m.sportId||"";document.getElementById("matchCompetition").value=m.competitionId||"";document.getElementById("matchDate").value=toLocalDateTime(m.date);document.getElementById("matchStatus").value=m.status||"scheduled";document.getElementById("homeScore").value=m.homeScore||0;document.getElementById("awayScore").value=m.awayScore||0;document.getElementById("matchMinute").value=m.minute||0;document.getElementById("matchDescription").value=m.description||"";document.getElementById("matchFormTitle").textContent="Upraviť zápas";showPage("matches");window.scrollTo({top:0,behavior:"smooth"});}
+async function deleteMatch(id){if(!confirm("Naozaj chceš zmazať tento zápas?"))return;try{await api("/api/admin/matches/"+encodeURIComponent(id),{method:"DELETE"});await loadMatches();updateStats();notice("Zápas bol zmazaný.");}catch(e){notice(e.message,"error");}}
+function clearMatchForm(){["matchId","homeTeam","awayTeam","matchDate","matchMinute","matchDescription"].forEach(id=>document.getElementById(id).value="");document.getElementById("homeScore").value=0;document.getElementById("awayScore").value=0;document.getElementById("matchStatus").value="scheduled";document.getElementById("matchFormTitle").textContent="Pridať zápas";}
+
+async function loadSports(){const d=await api("/api/admin/sports");sports=Array.isArray(d)?d:(d.sports||[]);renderSports();fillSportSelects();}
+function renderSports(){const el=document.getElementById("sportsList");if(!sports.length){el.innerHTML="<p class='muted'>Zatiaľ žiadne športy.</p>";return;}el.innerHTML=sports.map(s=>`<div class="audio-state"><strong>${escapeHTML(s.icon||"")} ${escapeHTML(s.name||"")}</strong><div class="actions" style="margin-top:10px"><button class="secondary" onclick="editSport('${escapeAttr(s.id)}')">Upraviť</button><button class="danger" onclick="deleteSport('${escapeAttr(s.id)}')">Zmazať</button></div></div>`).join("");}
+async function saveSport(){const id=document.getElementById("sportId").value,s={name:document.getElementById("sportName").value.trim(),icon:document.getElementById("sportIcon").value.trim()};if(!s.name)return notice("Zadaj názov športu.","error");try{await api(id?"/api/admin/sports/"+encodeURIComponent(id):"/api/admin/sports",{method:id?"PUT":"POST",body:JSON.stringify(s)});clearSportForm();await loadSports();updateStats();notice("Šport bol uložený.");}catch(e){notice(e.message,"error");}}
+function editSport(id){const s=sports.find(x=>String(x.id)===String(id));if(!s)return;document.getElementById("sportId").value=s.id;document.getElementById("sportName").value=s.name||"";document.getElementById("sportIcon").value=s.icon||"";}
+async function deleteSport(id){if(!confirm("Naozaj chceš zmazať tento šport?"))return;try{await api("/api/admin/sports/"+encodeURIComponent(id),{method:"DELETE"});await loadSports();updateStats();notice("Šport bol zmazaný.");}catch(e){notice(e.message,"error");}}
+function clearSportForm(){document.getElementById("sportId").value="";document.getElementById("sportName").value="";document.getElementById("sportIcon").value="";}
+
+async function loadCompetitions(){const d=await api("/api/admin/competitions");competitions=Array.isArray(d)?d:(d.competitions||[]);renderCompetitions();fillCompetitionSelects();}
+function renderCompetitions(){const el=document.getElementById("competitionsList");if(!competitions.length){el.innerHTML="<p class='muted'>Zatiaľ žiadne súťaže.</p>";return;}el.innerHTML=competitions.map(c=>`<div class="audio-state"><strong>${escapeHTML(c.name||"")}</strong><p class="muted">${escapeHTML(c.country||"")}</p><div class="actions"><button class="secondary" onclick="editCompetition('${escapeAttr(c.id)}')">Upraviť</button><button class="danger" onclick="deleteCompetition('${escapeAttr(c.id)}')">Zmazať</button></div></div>`).join("");}
+async function saveCompetition(){const id=document.getElementById("competitionId").value,c={name:document.getElementById("competitionName").value.trim(),sportId:document.getElementById("competitionSport").value,country:document.getElementById("competitionCountry").value.trim()};if(!c.name)return notice("Zadaj názov súťaže.","error");try{await api(id?"/api/admin/competitions/"+encodeURIComponent(id):"/api/admin/competitions",{method:id?"PUT":"POST",body:JSON.stringify(c)});clearCompetitionForm();await loadCompetitions();updateStats();notice("Súťaž bola uložená.");}catch(e){notice(e.message,"error");}}
+function editCompetition(id){const c=competitions.find(x=>String(x.id)===String(id));if(!c)return;document.getElementById("competitionId").value=c.id;document.getElementById("competitionName").value=c.name||"";document.getElementById("competitionSport").value=c.sportId||"";document.getElementById("competitionCountry").value=c.country||"";}
+async function deleteCompetition(id){if(!confirm("Naozaj chceš zmazať túto súťaž?"))return;try{await api("/api/admin/competitions/"+encodeURIComponent(id),{method:"DELETE"});await loadCompetitions();updateStats();notice("Súťaž bola zmazaná.");}catch(e){notice(e.message,"error");}}
+function clearCompetitionForm(){document.getElementById("competitionId").value="";document.getElementById("competitionName").value="";document.getElementById("competitionCountry").value="";}
+
+function fillSportSelects(){const options='<option value="">Bez športu</option>'+sports.map(s=>`<option value="${escapeAttr(s.id)}">${escapeHTML(s.name)}</option>`).join("");document.getElementById("matchSport").innerHTML=options;document.getElementById("competitionSport").innerHTML=options;}
+function fillCompetitionSelects(){document.getElementById("matchCompetition").innerHTML='<option value="">Bez súťaže</option>'+competitions.map(c=>`<option value="${escapeAttr(c.id)}">${escapeHTML(c.name)}</option>`).join("");}
+
+async function loadWebsite(){const d=await api("/api/admin/settings/website");document.getElementById("siteName").value=d.siteName||"SCORELY";document.getElementById("siteSubtitle").value=d.siteSubtitle||"";document.getElementById("siteNotice").value=d.notice||"";document.getElementById("noticeEnabled").checked=!!d.noticeEnabled;}
+async function saveWebsite(){const settings={siteName:document.getElementById("siteName").value.trim(),siteSubtitle:document.getElementById("siteSubtitle").value.trim(),notice:document.getElementById("siteNotice").value.trim(),noticeEnabled:document.getElementById("noticeEnabled").checked};try{await api("/api/admin/settings/website",{method:"PUT",body:JSON.stringify(settings)});notice("Nastavenia webu boli uložené.");}catch(e){notice(e.message,"error");}}
+
+async function connectLiveKit(){const url=document.getElementById("livekitUrl").value.trim(),roomName=document.getElementById("livekitRoom").value.trim();if(!url||!roomName)return notice("Vyplň LiveKit URL a názov miestnosti.","error");try{const tokenData=await api("/api/livekit/token",{method:"POST",body:JSON.stringify({room:roomName,role:"admin"})});if(!tokenData.token)throw new Error("Server neposlal LiveKit token.");const {Room,RoomEvent}=window.LivekitClient;room=new Room();room.on(RoomEvent.Disconnected,()=>document.getElementById("connectionStatus").textContent="Odpojené");await room.connect(url,tokenData.token);document.getElementById("connectionStatus").textContent="Pripojené";notice("LiveKit pripojený.");}catch(e){notice(e.message,"error");}}
+async function disconnectLiveKit(){try{await stopMic();await stopMusic();if(room){await room.disconnect();room=null;}document.getElementById("connectionStatus").textContent="Nepripojené";notice("LiveKit odpojený.");}catch(e){notice(e.message,"error");}}
+async function startMic(){if(!room)return notice("Najskôr pripoj LiveKit.","error");try{if(localAudioTrack)await stopMic();localAudioTrack=await window.LivekitClient.createLocalAudioTrack();await room.localParticipant.publishTrack(localAudioTrack);document.getElementById("micStatus").textContent="Zapnutý";await setAudioMode("commentary");notice("Mikrofón je zapnutý.");}catch(e){notice(e.message,"error");}}
+async function toggleMic(){if(!localAudioTrack)return startMic();try{const enabled=!localAudioTrack.isMuted;if(enabled)await localAudioTrack.mute();else await localAudioTrack.unmute();document.getElementById("micStatus").textContent=enabled?"Stlmený":"Zapnutý";}catch(e){notice(e.message,"error");}}
+async function stopMic(){if(!localAudioTrack){document.getElementById("micStatus").textContent="Vypnutý";return;}try{if(room)await room.localParticipant.unpublishTrack(localAudioTrack);localAudioTrack.stop();localAudioTrack=null;document.getElementById("micStatus").textContent="Vypnutý";}catch(e){notice(e.message,"error");}}
+
+document.getElementById("musicFile").addEventListener("change",e=>{const file=e.target.files[0];if(!file)return;if(musicObjectUrl)URL.revokeObjectURL(musicObjectUrl);musicObjectUrl=URL.createObjectURL(file);document.getElementById("musicPreview").src=musicObjectUrl;});
+async function startMusic(){if(!room)return notice("Najskôr pripoj LiveKit.","error");if(!document.getElementById("musicFile").files[0])return notice("Vyber hudobný súbor.","error");try{await stopMic();await stopMusic();const audio=document.getElementById("musicPreview");audio.loop=true;audio.currentTime=0;await audio.play();const stream=audio.captureStream(),track=stream.getAudioTracks()[0];if(!track)throw new Error("Prehliadač nepodporuje zachytenie zvuku.");musicTrack=await window.LivekitClient.createLocalAudioTrack({mediaStreamTrack:track});await room.localParticipant.publishTrack(musicTrack);await setAudioMode("music");notice("Hudba sa vysiela.");}catch(e){notice(e.message,"error");}}
+async function stopMusic(){document.getElementById("musicPreview").pause();if(musicTrack){try{if(room)await room.localParticipant.unpublishTrack(musicTrack);musicTrack.stop();}catch(e){console.error(e);}musicTrack=null;}}
+async function setAudioMode(mode){try{await api("/api/admin/audio/mode",{method:"POST",body:JSON.stringify({mode})});if(mode==="muted"){if(localAudioTrack)await localAudioTrack.mute();if(musicTrack)await musicTrack.mute();}if(mode==="commentary"){if(musicTrack)await musicTrack.mute();if(localAudioTrack)await localAudioTrack.unmute();}if(mode==="music"){if(localAudioTrack)await localAudioTrack.mute();if(musicTrack)await musicTrack.unmute();}document.getElementById("audioModeStatus").textContent=({commentary:"Komentovanie",music:"Hudba",muted:"Stlmené"})[mode]||mode;}catch(e){notice(e.message,"error");}}
+
+async function saveSchedule(){const s={startAt:document.getElementById("broadcastStart").value,durationMinutes:Number(document.getElementById("broadcastDuration").value),breakStartMinutes:Number(document.getElementById("breakStart").value),breakDurationMinutes:Number(document.getElementById("breakDuration").value)};if(!s.startAt||s.durationMinutes<1)return notice("Vyplň začiatok a platné trvanie.","error");if(s.breakStartMinutes<0||s.breakDurationMinutes<0)return notice("Čas prestávky nemôže byť záporný.","error");try{await api("/api/admin/audio/schedule",{method:"POST",body:JSON.stringify(s)});notice("Plán vysielania bol uložený na serveri.");}catch(e){notice(e.message,"error");}}
+async function stopBroadcast(){if(!confirm("Naozaj chceš zastaviť vysielanie?"))return;try{await api("/api/admin/audio/stop",{method:"POST"});await stopMic();await stopMusic();notice("Vysielanie bolo zastavené.");}catch(e){notice(e.message,"error");}}
+
+function updateStats(){document.getElementById("statMatches").textContent=matches.length;document.getElementById("statLive").textContent=matches.filter(m=>m.status==="live").length;document.getElementById("statSports").textContent=sports.length;document.getElementById("statCompetitions").textContent=competitions.length;}
+function escapeHTML(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function escapeAttr(v){return escapeHTML(v).replace(/`/g,"&#96;");}
+function toLocalDateTime(v){if(!v)return "";const d=new Date(v);if(Number.isNaN(d.getTime()))return "";const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);return local.toISOString().slice(0,16);}
+</script>
+</body>
+</html>
