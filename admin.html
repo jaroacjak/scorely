@@ -5,8 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scorly Admin - Štúdio a Správa</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDK (Compat verzie pre jednoduché použitie v jednom HTML) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    
     <style>
         :root {
             --bg-body: #0d0f12;
@@ -61,7 +65,8 @@
     <div id="login-overlay">
         <div class="login-card">
             <h2 style="justify-content: center;"><i class="fa-solid fa-lock"></i> Scorly Admin</h2>
-            <input type="password" id="admin-pass" placeholder="Vlož heslo (admin123)">
+            <input type="email" id="admin-email" placeholder="Email (voliteľné pre Auth)" style="margin-bottom:4px;">
+            <input type="password" id="admin-pass" placeholder="Heslo (alebo zadej: admin123)">
             <button onclick="login()"><i class="fa-solid fa-right-to-bracket"></i> PRIHLÁSIŤ SA</button>
             <div id="login-error" style="color:red; font-size:12px; margin-top:10px;"></div>
         </div>
@@ -71,7 +76,10 @@
     <div class="admin-box" id="admin-content">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <h1>Vysielacie Štúdio & Správa Zápasov</h1>
-            <a href="index.html" style="color:var(--text-muted); text-decoration:none;"><i class="fa-solid fa-eye"></i> Prejsť na web</a>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <a href="index.html" style="color:var(--text-muted); text-decoration:none;"><i class="fa-solid fa-eye"></i> Späť na web</a>
+                <button onclick="logout()" style="width:auto; padding:6px 12px; background:#444;"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </div>
         </div>
 
         <!-- Live Audio & Reklama Panel -->
@@ -133,21 +141,49 @@
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        const auth = firebase.auth();
 
         let micStream = null;
 
+        // Kontrola Firebase Auth stavu
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                showAdminPanel();
+            }
+        });
+
         function login() {
+            const email = document.getElementById('admin-email').value;
             const pass = document.getElementById('admin-pass').value;
-            if (pass === 'admin123') {
-                document.getElementById('login-overlay').style.display = 'none';
-                document.getElementById('admin-content').style.display = 'block';
+
+            if (email && pass) {
+                auth.signInWithEmailAndPassword(email, pass)
+                    .then(() => showAdminPanel())
+                    .catch(err => {
+                        document.getElementById('login-error').innerText = "Chyba prihlásenia: " + err.message;
+                    });
+            } else if (pass === 'admin123') {
+                showAdminPanel();
             } else {
-                document.getElementById('login-error').innerText = "Chybné heslo! Zadaj: admin123";
+                document.getElementById('login-error').innerText = "Chybné heslo! Zadaj: admin123 alebo použij Firebase Email/Heslo";
             }
         }
 
+        function logout() {
+            auth.signOut().then(() => {
+                document.getElementById('login-overlay').style.display = 'flex';
+                document.getElementById('admin-content').style.display = 'none';
+            });
+        }
+
+        function showAdminPanel() {
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('admin-content').style.display = 'block';
+            listenToDatabase();
+        }
+
         async function setBroadcastMode(mode) {
-            db.ref('broadcast').update({ mode: mode, time: Date.now() });
+            db.ref('broadcast').update({ mode: mode, updatedAt: Date.now() });
 
             document.querySelectorAll('.btn-grid button').forEach(b => b.classList.remove('active'));
             if(mode === 'mic') document.getElementById('btn-mic').classList.add('active');
@@ -162,6 +198,10 @@
                     alert('Mikrofón sa nepodarilo aktivovať: ' + e.message);
                 }
             } else {
+                if (micStream) {
+                    micStream.getTracks().forEach(track => track.stop());
+                    micStream = null;
+                }
                 document.getElementById('mic-bar').style.width = '0%';
             }
         }
@@ -204,44 +244,51 @@
             document.getElementById('new-away').value = '';
         }
 
-        db.ref('matches').on('value', snap => {
-            const matches = snap.val() || {};
-            const container = document.getElementById('matches-list');
-            container.innerHTML = '';
+        function listenToDatabase() {
+            db.ref('matches').on('value', snap => {
+                const matches = snap.val() || {};
+                const container = document.getElementById('matches-list');
+                container.innerHTML = '';
 
-            for (let id in matches) {
-                const m = matches[id];
-                container.innerHTML += `
-                    <div class="match-row-admin">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <strong>${m.teamHome} vs ${m.teamAway} (${m.sport})</strong>
-                            <button onclick="deleteMatch('${id}')" style="width:auto; padding:3px 8px; background:#aa0000;">Zmazať</button>
-                        </div>
-                        <div class="ctrl-group">
-                            <span>Skóre:</span>
-                            <button onclick="adjScore('${id}', 'home', 1)">+1 D</button>
-                            <button onclick="adjScore('${id}', 'home', -1)">-1 D</button>
-                            <strong style="font-size:16px;">${m.scoreHome} : ${m.scoreAway}</strong>
-                            <button onclick="adjScore('${id}', 'away', 1)">+1 H</button>
-                            <button onclick="adjScore('${id}', 'away', -1)">-1 H</button>
+                if (Object.keys(matches).length === 0) {
+                    container.innerHTML = '<div style="color:var(--text-muted); padding:10px;">Žiadne aktívne zápasy. Pridaj prvý vyššie.</div>';
+                    return;
+                }
 
-                            <span style="margin-left:15px;">Čas:</span>
-                            <input type="text" value="${m.time}" class="sm-input" onchange="updateTime('${id}', this.value)">'
+                for (let id in matches) {
+                    const m = matches[id];
+                    container.innerHTML += `
+                        <div class="match-row-admin">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <strong>${m.teamHome} vs ${m.teamAway} (${m.sport || 'FUTBAL'})</strong>
+                                <button onclick="deleteMatch('${id}')" style="width:auto; padding:3px 8px; background:#aa0000;">Zmazať</button>
+                            </div>
+                            <div class="ctrl-group">
+                                <span>Skóre:</span>
+                                <button onclick="adjScore('${id}', 'home', 1)">+1 D</button>
+                                <button onclick="adjScore('${id}', 'home', -1)">-1 D</button>
+                                <strong style="font-size:16px;">${m.scoreHome} : ${m.scoreAway}</strong>
+                                <button onclick="adjScore('${id}', 'away', 1)">+1 H</button>
+                                <button onclick="adjScore('${id}', 'away', -1)">-1 H</button>
 
-                            <button onclick="toggleStatus('${id}', '${m.status}')" class="btn-dark" style="margin-left:10px;">${m.status}</button>
-                        </div>
+                                <span style="margin-left:15px;">Čas:</span>
+                                <input type="text" value="${m.time}" class="sm-input" onchange="updateTime('${id}', this.value)">'
 
-                        <div style="margin-top:10px; border-top:1px solid #222; padding-top:8px;">
-                            <span style="font-size:12px; color:var(--text-muted);">Pridať Udalosť (Gól / Karta / Striedanie):</span>
-                            <div style="display:flex; gap:5px; margin-top:4px;">
-                                <input type="text" id="ev-txt-${id}" placeholder="napr. 15' Gól - J. Novák" style="margin:0; flex:1;">
-                                <button onclick="addEvent('${id}')" style="width:auto; margin:0;">+ Pridať</button>
+                                <button onclick="toggleStatus('${id}', '${m.status}')" class="btn-dark" style="margin-left:10px;">${m.status}</button>
+                            </div>
+
+                            <div style="margin-top:10px; border-top:1px solid #222; padding-top:8px;">
+                                <span style="font-size:12px; color:var(--text-muted);">Pridať Udalosť (Gól / Karta / Striedanie):</span>
+                                <div style="display:flex; gap:5px; margin-top:4px;">
+                                    <input type="text" id="ev-txt-${id}" placeholder="napr. 15' Gól - J. Novák" style="margin:0; flex:1;">
+                                    <button onclick="addEvent('${id}')" style="width:auto; margin:0;">+ Pridať</button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `;
-            }
-        });
+                    `;
+                }
+            });
+        }
 
         function adjScore(id, team, delta) {
             const ref = db.ref(`matches/${id}`);
