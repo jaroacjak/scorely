@@ -43,16 +43,16 @@
         button { background: var(--accent-red); border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
         button:hover { opacity: 0.9; }
 
-        .btn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+        .btn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
         .btn-green { background: var(--accent-green); color: #000; }
         .btn-yellow { background: var(--accent-yellow); color: #000; }
         .btn-dark { background: #333; }
-        .btn-green.active, .btn-yellow.active { outline: 2px solid #fff; }
+        .btn-green.active, .btn-yellow.active, .btn-dark.active { outline: 2px solid #fff; }
 
-        .match-row-admin { background: #111418; border: 1px solid var(--border-color); border-radius: 6px; padding: 15px; margin-bottom: 10px; }
+        .match-row-admin { background: #111418; border: 1px solid var(--border-color); border-radius: 6px; padding: 15px; margin-bottom: 15px; }
         .ctrl-group { display: flex; gap: 6px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
         .ctrl-group button { width: auto; padding: 6px 12px; margin: 0; }
-        .sm-input { width: 90px !important; display: inline-block; padding: 5px; margin: 0; text-align: center; }
+        .sm-input { width: 70px !important; display: inline-block; padding: 5px; margin: 0; text-align: center; }
         
         .mic-meter { height: 6px; background: #222; border-radius: 3px; margin-top: 10px; overflow: hidden; }
         .mic-level { height: 100%; width: 0%; background: var(--accent-green); transition: width 0.1s; }
@@ -75,30 +75,40 @@
             <a href="index.html" style="color:var(--text-muted); text-decoration:none;"><i class="fa-solid fa-eye"></i> Prejsť na web</a>
         </div>
 
+        <!-- Audio štúdio -->
         <div class="card">
-            <h2><i class="fa-solid fa-microphone"></i> Audio Komentár & Výber Zápasu na Vysielanie</h2>
+            <h2><i class="fa-solid fa-microphone"></i> Audio Komentár & Výber Zápasu</h2>
             <label style="font-size:12px; color:var(--text-muted);">Ktorý zápas práve komentuješ?</label>
             <select id="active-match-select" style="margin-bottom:12px;">
                 <option value="">-- Žiadny zápas (iba hudba/reklama) --</option>
             </select>
 
             <div class="btn-grid">
-                <button id="btn-mic" onclick="setBroadcastMode('mic')" class="btn-green"><i class="fa-solid fa-microphone"></i> Zapnúť Mikrofón</button>
-                <button id="btn-music" onclick="setBroadcastMode('music')" class="btn-yellow"><i class="fa-solid fa-music"></i> Reklama / Hudba</button>
-                <button id="btn-off" onclick="setBroadcastMode('off')" class="btn-dark"><i class="fa-solid fa-power-off"></i> Vypnúť Audio</button>
+                <button id="btn-mic" onclick="setBroadcastMode('mic')" class="btn-green"><i class="fa-solid fa-microphone"></i> Mikrofón</button>
+                <button id="btn-music" onclick="setBroadcastMode('music')" class="btn-yellow"><i class="fa-solid fa-music"></i> Hudba/Reklama</button>
+                <button id="btn-off" onclick="setBroadcastMode('off')" class="btn-dark"><i class="fa-solid fa-power-off"></i> Vypnúť</button>
             </div>
 
             <div class="mic-meter">
                 <div id="mic-bar" class="mic-level"></div>
             </div>
+
+            <div style="margin-top:15px; border-top:1px solid var(--border-color); padding-top:10px;">
+                <label style="font-size:12px; color:var(--text-muted);">Zvukové Efekty pre divákov:</label>
+                <div style="display:flex; gap:8px; margin-top:5px;">
+                    <button onclick="triggerSFX('goal')" class="btn-dark"><i class="fa-solid fa-bullhorn"></i> Klaksón (Gól)</button>
+                    <button onclick="triggerSFX('whistle')" class="btn-dark"><i class="fa-solid fa-volume-high"></i> Píšťalka</button>
+                </div>
+            </div>
         </div>
 
+        <!-- Pridanie zápasu -->
         <div class="card">
-            <h2><i class="fa-solid fa-plus"></i> Pridať Nový Zápas (s Dátumom)</h2>
+            <h2><i class="fa-solid fa-plus"></i> Pridať Nový Zápas</h2>
             <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:8px;">
                 <input type="text" id="new-home" placeholder="Domáci">
                 <input type="text" id="new-away" placeholder="Hostia">
-                <input type="text" id="new-date" placeholder="Dátum (09.11.)" value="09.11.2026">
+                <input type="text" id="new-date" placeholder="Dátum" value="09.11.2026">
                 <select id="new-sport">
                     <option value="HOKEJ">Hokej</option>
                     <option value="FUTBAL">Futbal</option>
@@ -107,8 +117,9 @@
             <button onclick="createMatch()"><i class="fa-solid fa-save"></i> Vytvoriť Zápas</button>
         </div>
 
+        <!-- Správa zápasov -->
         <div class="card">
-            <h2><i class="fa-solid fa-list-check"></i> Živé Ovládanie Zápasov</h2>
+            <h2><i class="fa-solid fa-list-check"></i> Živé Ovládanie Zápasov & Udalostí</h2>
             <div id="matches-list">Načítavam z databázy...</div>
         </div>
     </div>
@@ -206,6 +217,10 @@
             update();
         }
 
+        function triggerSFX(type) {
+            db.ref('broadcast/sfx').set({ type: type, time: Date.now() });
+        }
+
         function createMatch() {
             const home = document.getElementById('new-home').value;
             const away = document.getElementById('new-away').value;
@@ -233,7 +248,6 @@
 
                 for (let id in matches) {
                     const m = matches[id];
-                    
                     select.innerHTML += `<option value="${id}">${m.date} - ${m.teamHome} vs ${m.teamAway}</option>`;
 
                     container.innerHTML += `
@@ -250,10 +264,18 @@
                                 <button onclick="adjScore('${id}', 'away', 1)">+1 H</button>
                                 <button onclick="adjScore('${id}', 'away', -1)">-1 H</button>
 
-                                <span style="margin-left:10px;">Čas:</span>
+                                <span style="margin-left:5px;">Čas:</span>
                                 <input type="text" value="${m.time}" class="sm-input" onchange="updateField('${id}', 'time', this.value)">'
 
                                 <button onclick="toggleStatus('${id}', '${m.status}')" class="btn-dark" style="margin-left:5px;">${m.status}</button>
+                            </div>
+
+                            <div style="margin-top:10px; border-top:1px solid #222; padding-top:8px;">
+                                <span style="font-size:12px; color:var(--text-muted);">Pridať Udalosť (Gól / Karta):</span>
+                                <div style="display:flex; gap:5px; margin-top:4px;">
+                                    <input type="text" id="ev-txt-${id}" placeholder="napr. 15' Gól - J. Novák" style="margin:0; flex:1;">
+                                    <button onclick="addEvent('${id}')" style="width:auto; margin:0;">+ Pridať</button>
+                                </div>
                             </div>
                         </div>
                     `;
@@ -272,6 +294,19 @@
         function updateField(id, field, val) { db.ref(`matches/${id}`).update({ [field]: val }); }
         function toggleStatus(id, current) { db.ref(`matches/${id}`).update({ status: current === 'LIVE' ? 'KONIEC' : 'LIVE' }); }
         function deleteMatch(id) { db.ref(`matches/${id}`).remove(); }
+
+        function addEvent(id) {
+            const txt = document.getElementById(`ev-txt-${id}`).value;
+            if (!txt) return;
+
+            db.ref(`matches/${id}`).once('value', snap => {
+                const m = snap.val();
+                const events = m.events || [];
+                events.push({ time: m.time || '1', text: txt, type: 'Udalosť' });
+                db.ref(`matches/${id}`).update({ events: events });
+                document.getElementById(`ev-txt-${id}`).value = '';
+            });
+        }
     </script>
 </body>
 </html>
