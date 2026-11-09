@@ -3,133 +3,164 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scorly - Flashscore Štýl Živé Výsledky</title>
+    <title>Scorly - Výsledky a Živé vysielanie</title>
+    <!-- Ikonky (FontAwesome) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase a PeerJS (pre prenos zvuku) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+
     <style>
         :root {
-            --bg-body: #0e1114;
-            --bg-card: #181c22;
-            --bg-header: #090b0d;
-            --accent-red: #e00000;
-            --accent-green: #00e676;
-            --text-main: #f0f2f5;
-            --text-muted: #8c9ba5;
-            --border-color: #262c36;
+            --bg-dark: #001e28;
+            --bg-light: #f1f5f9;
+            --primary-red: #e62020;
+            --text-dark: #1a1a1a;
+            --text-light: #ffffff;
+            --border-color: #e2e8f0;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
-        body { background-color: var(--bg-body); color: var(--text-main); padding-bottom: 90px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-light); color: var(--text-dark); padding-bottom: 60px; }
 
-        header {
-            background-color: var(--bg-header);
-            border-bottom: 2px solid var(--accent-red);
-            padding: 12px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky; top: 0; z-index: 100;
-        }
-
-        .logo { font-size: 24px; font-weight: 900; color: #fff; letter-spacing: -0.5px; }
-        .logo span { color: var(--accent-red); }
-
-        .admin-link {
-            color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 600;
-            padding: 6px 14px; background: var(--bg-card); border-radius: 4px; border: 1px solid var(--border-color);
-        }
-        .admin-link:hover { color: #fff; border-color: var(--accent-red); }
-
-        .top-tools { background: var(--bg-card); border-bottom: 1px solid var(--border-color); padding: 10px 15px; display: flex; gap: 10px; }
-        .search-input {
-            flex: 1; background: #101419; border: 1px solid var(--border-color); padding: 8px 12px;
-            border-radius: 4px; color: #fff; font-size: 14px; outline: none;
-        }
-
-        .nav-categories { background: var(--bg-card); display: flex; border-bottom: 1px solid var(--border-color); overflow-x: auto; }
-        .cat-btn {
-            background: none; border: none; color: var(--text-muted); padding: 12px 20px; font-size: 13px; font-weight: 700;
-            cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap;
-        }
-        .cat-btn.active { color: #fff; border-bottom-color: var(--accent-red); }
-
-        .live-player-bar {
-            background: linear-gradient(90deg, #1f1214 0%, #161a22 100%);
-            border: 1px solid var(--accent-red); margin: 15px auto; max-width: 800px; padding: 12px 20px;
-            border-radius: 8px; display: flex; align-items: center; justify-content: space-between;
-        }
-        .live-dot { width: 10px; height: 10px; background-color: var(--accent-green); border-radius: 50%; box-shadow: 0 0 8px var(--accent-green); animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
-
-        .container { max-width: 800px; margin: 0 auto; padding: 15px; }
-        .league-group { background: var(--bg-card); border-radius: 6px; border: 1px solid var(--border-color); margin-bottom: 15px; overflow: hidden; }
-        .league-header { background: rgba(255,255,255,0.03); padding: 10px 15px; font-size: 13px; font-weight: 700; color: var(--text-muted); border-bottom: 1px solid var(--border-color); }
+        /* HORNÁ LIŠTA */
+        .top-header { background-color: var(--bg-dark); color: var(--text-light); padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .top-header .left { display: flex; align-items: center; gap: 15px; font-size: 18px; font-weight: bold; }
+        .top-header .right { display: flex; gap: 15px; font-size: 18px; }
         
-        .match-row {
-            display: grid; grid-template-columns: 60px 1fr 50px 30px; padding: 12px 15px;
-            border-bottom: 1px solid var(--border-color); align-items: center; cursor: pointer;
-        }
-        .match-row:hover { background: rgba(255,255,255,0.02); }
-        .match-status { font-size: 12px; font-weight: 700; color: var(--text-muted); }
-        .match-status.live { color: var(--accent-green); }
-        .teams { display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 600; }
-        .score { font-size: 15px; font-weight: 800; text-align: right; display: flex; flex-direction: column; gap: 4px; }
+        /* DÁTUMOVÁ LIŠTA */
+        .date-strip { background: white; display: flex; overflow-x: auto; padding: 10px 0; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+        .date-strip::-webkit-scrollbar { display: none; }
+        .date-item { padding: 0 15px; text-align: center; font-size: 12px; color: #666; font-weight: bold; cursor: pointer; }
+        .date-item.active { color: var(--primary-red); border-bottom: 2px solid var(--primary-red); padding-bottom: 5px; }
 
-        /* Detail Modal */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 200; align-items: center; justify-content: center; }
-        .modal-card { background: var(--bg-card); width: 90%; max-width: 550px; border-radius: 8px; border: 1px solid var(--border-color); padding: 20px; position: relative; }
-        .timeline-item { padding: 8px 0; border-bottom: 1px dashed var(--border-color); font-size: 13px; display: flex; justify-content: space-between; }
+        /* REKLAMNÝ BANNER */
+        .banner { background: #007aff; color: white; text-align: center; padding: 10px; font-size: 14px; font-weight: bold; display: flex; justify-content: center; align-items: center; gap: 10px; }
+        .banner button { background: #ff9900; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; }
+
+        /* ZOZNAM ZÁPASOV */
+        .category-header { background: #fff3cd; padding: 8px 15px; font-size: 12px; font-weight: bold; color: #856404; text-transform: uppercase; margin-top: 10px; }
+        .match-row { background: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); cursor: pointer; }
+        .match-row:active { background: #f9f9f9; }
+        .team-info { display: flex; flex-direction: column; gap: 5px; font-weight: 500; }
+        .score-info { display: flex; flex-direction: column; gap: 5px; text-align: right; font-weight: bold; }
+        .match-time { font-size: 12px; color: var(--primary-red); width: 40px; }
+
+        /* DETAIL ZÁPASU (Obal) */
+        #match-detail { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-light); z-index: 200; display: none; overflow-y: auto; }
+        .detail-header { background: var(--bg-dark); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .detail-time { text-align: center; padding: 15px; font-size: 14px; color: #666; font-weight: bold; }
+        
+        .score-board { display: flex; justify-content: space-around; align-items: center; padding: 20px; background: white; margin: 0 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .team-card { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 30%; text-align: center; font-weight: bold; }
+        .team-card .flag { width: 50px; height: 50px; background: #eee; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 24px; border: 1px solid #ddd; }
+        .main-score { font-size: 32px; font-weight: bold; }
+
+        .tabs { display: flex; background: white; margin-top: 15px; border-bottom: 1px solid var(--border-color); }
+        .tab { flex: 1; text-align: center; padding: 12px; font-size: 13px; font-weight: bold; color: #666; text-transform: uppercase; cursor: pointer; }
+        .tab.active { color: var(--primary-red); border-bottom: 3px solid var(--primary-red); }
+
+        .events-list { padding: 15px; background: white; }
+        .event-item { padding: 10px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+
+        /* SPODNÁ NAVIGÁCIA */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; padding: 10px 0; z-index: 100; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; font-size: 11px; color: #666; text-decoration: none; cursor: pointer; gap: 4px; }
+        .nav-item.active { color: var(--primary-red); }
+        .nav-item i { font-size: 20px; }
+
+        /* Audio Upozornenie */
+        #audio-status { position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%); background: var(--primary-red); color: white; padding: 8px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; display: none; z-index: 150; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
     </style>
 </head>
 <body>
 
-    <header>
-        <div class="logo"><i class="fa-solid fa-bolt"></i> SCOR<span>LY</span></div>
-        <a href="admin.html" class="admin-link"><i class="fa-solid fa-lock"></i> Admin Panel</a>
+    <!-- Horná lišta -->
+    <header class="top-header">
+        <div class="left">
+            <i class="fa-solid fa-bars"></i>
+            <span><i class="fa-solid fa-hockey-puck"></i> Hokej <i class="fa-solid fa-caret-down"></i></span>
+        </div>
+        <div class="right">
+            <i class="fa-solid fa-gift"></i>
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <i class="fa-regular fa-user"></i>
+        </div>
     </header>
 
-    <div class="top-tools">
-        <input type="text" id="search" class="search-input" placeholder="Hľadať tím alebo ligu..." oninput="filterMatches()">
+    <!-- Dátumová lišta -->
+    <div class="date-strip">
+        <div class="date-item">PI<br>6.11.</div>
+        <div class="date-item">SO<br>7.11.</div>
+        <div class="date-item">NE<br>8.11.</div>
+        <div class="date-item active">DNES<br>9.11.</div>
+        <div class="date-item">UT<br>10.11.</div>
+        <div class="date-item">ST<br>11.11.</div>
+        <div class="date-item">ŠT<br>12.11.</div>
     </div>
 
-    <div class="nav-categories">
-        <button class="cat-btn active" onclick="setCategory('ALL', this)">VŠETKO</button>
-        <button class="cat-btn" onclick="setCategory('LIVE', this)">ŽIVÉ</button>
-        <button class="cat-btn" onclick="setCategory('FUTBAL', this)">FUTBAL</button>
-        <button class="cat-btn" onclick="setCategory('HOKEJ', this)">HOKEJ</button>
-        <button class="cat-btn" onclick="setCategory('TENIS', this)">TENIS</button>
+    <div class="banner">
+        Tipsport 20 € zadarmo len za registráciu 18+ <button>REGISTROVAŤ</button>
     </div>
 
-    <div class="container">
-        <div class="live-player-bar">
-            <div style="display:flex; align-items:center; gap:12px;">
-                <div class="live-dot"></div>
-                <div>
-                    <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase;">RÁDIO STAV</div>
-                    <div id="broadcast-text" style="font-size:14px; font-weight:700;">Vysielanie neprenáša</div>
-                </div>
+    <!-- Zoznam Zápasov -->
+    <div id="matches-container">
+        <div style="padding: 15px; text-align: center; color: #666;">Načítavam zápasy...</div>
+    </div>
+
+    <!-- Spodná navigácia -->
+    <nav class="bottom-nav">
+        <div class="nav-item active"><i class="fa-solid fa-field-pitch"></i>Zápasy</div>
+        <div class="nav-item"><i class="fa-solid fa-satellite-dish"></i>LIVE</div>
+        <div class="nav-item"><i class="fa-regular fa-star"></i>Obľúbené</div>
+        <!-- Správy odstránené podľa požiadavky -->
+        <div class="nav-item"><i class="fa-solid fa-trophy"></i>Ligy</div>
+    </nav>
+
+    <!-- Overlay pre Detail Zápasu -->
+    <div id="match-detail">
+        <div class="detail-header">
+            <i class="fa-solid fa-arrow-left" onclick="closeDetail()" style="font-size: 20px; cursor: pointer;"></i>
+            <span><i class="fa-solid fa-hockey-puck"></i> Hokej</span>
+            <div style="display:flex; gap:15px;">
+                <i class="fa-solid fa-share-nodes"></i>
+                <i class="fa-regular fa-bell"></i>
             </div>
-            <button id="listen-btn" onclick="toggleAudio()" style="background:var(--accent-red); border:none; color:#fff; padding:8px 16px; border-radius:4px; font-weight:700; cursor:pointer;">
-                <i class="fa-solid fa-volume-high"></i> POČÚVAŤ
-            </button>
         </div>
 
-        <div id="matches-list">
-            <div style="text-align:center; padding:30px; color:var(--text-muted);">Načítavam zápasy z databázy...</div>
+        <div class="detail-time" id="det-time">15.05.2027 12:20</div>
+
+        <div class="score-board">
+            <div class="team-card">
+                <div class="flag"><i class="fa-solid fa-shield-halved"></i></div>
+                <span id="det-home">Domáci</span>
+            </div>
+            <div class="main-score" id="det-score">- : -</div>
+            <div class="team-card">
+                <div class="flag"><i class="fa-solid fa-shield-halved"></i></div>
+                <span id="det-away">Hostia</span>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active">PREHĽAD</div>
+            <div class="tab">H2H</div>
+            <div class="tab">TABUĽKA</div>
+            <!-- Súpiska odstránená -->
+        </div>
+
+        <div class="events-list" id="det-events">
+            <div style="text-align:center; color:#999; padding:20px;">Zatiaľ žiadne udalosti</div>
         </div>
     </div>
 
-    <!-- Match Detail Modal -->
-    <div id="detail-modal" class="modal">
-        <div class="modal-card">
-            <button onclick="closeModal()" style="position:absolute; right:15px; top:15px; background:none; border:none; color:#fff; font-size:18px; cursor:pointer;">&times;</button>
-            <h3 id="modal-teams" style="margin-bottom:15px;"> Detail Zápasu</h3>
-            <div id="modal-timeline"></div>
-        </div>
-    </div>
+    <!-- Skryté Audio pre vysielanie a SFX -->
+    <audio id="live-audio" autoplay></audio>
+    <div id="audio-status"><i class="fa-solid fa-volume-high"></i> LIVE Komentár Aktívny</div>
 
     <script>
+        // FIREBASE NASTAVENIE
         const firebaseConfig = {
             apiKey: "AIzaSyBrbho9N3nrFwPyj9tNylBNh8fZ2MqBeHY",
             authDomain: "scorely-fff98.firebaseapp.com",
@@ -137,144 +168,85 @@
             projectId: "scorely-fff98",
             storageBucket: "scorely-fff98.firebasestorage.app",
             messagingSenderId: "1094795512385",
-            appId: "1:1094795512385:web:2c4785b37cc7063bac14c0",
-            measurementId: "G-CNFL3RQ8FL"
+            appId: "1:1094795512385:web:2c4785b37cc7063bac14c0"
         };
-
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let allMatches = {};
-        let activeCategory = 'ALL';
-        let audioActive = false;
-
-        db.ref('broadcast').on('value', snap => {
-            const data = snap.val() || {};
-            const text = document.getElementById('broadcast-text');
-            if (data.mode === 'mic') {
-                text.innerText = "Živý Komentár (Mikrofón ZAP)"; text.style.color = "#00e676";
-            } else if (data.mode === 'music') {
-                text.innerText = "Reklama / Hudobná Prestávka"; text.style.color = "#ffb300";
-            } else {
-                text.innerText = "Vysielanie je pozastavené"; text.style.color = "#8c9ba5";
-            }
-
-            if (audioActive && data.sfx) {
-                playLocalSFX(data.sfx.type);
-            }
-        });
-
+        // 1. NAČÍTANIE ZÁPASOV
         db.ref('matches').on('value', snap => {
-            allMatches = snap.val() || {};
-            renderMatches();
-        });
+            const matches = snap.val() || {};
+            const container = document.getElementById('matches-container');
+            container.innerHTML = '<div class="category-header">OBLÚBENÉ SÚŤAŽE</div>';
 
-        function setCategory(cat, btn) {
-            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            activeCategory = cat;
-            renderMatches();
-        }
-
-        function filterMatches() { renderMatches(); }
-
-        function renderMatches() {
-            const container = document.getElementById('matches-list');
-            const search = document.getElementById('search').value.toLowerCase();
-            container.innerHTML = '';
-
-            let filtered = [];
-            for (let id in allMatches) {
-                let m = allMatches[id];
-                m.id = id;
-                const matchCat = (m.sport || 'FUTBAL').toUpperCase();
-                const matchName = `${m.teamHome} ${m.teamAway} ${m.league || ''}`.toLowerCase();
-
-                if (activeCategory === 'LIVE' && m.status !== 'LIVE') continue;
-                if (activeCategory !== 'ALL' && activeCategory !== 'LIVE' && matchCat !== activeCategory) continue;
-                if (search && !matchName.includes(search)) continue;
-
-                filtered.push(m);
-            }
-
-            if (filtered.length === 0) {
-                container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted);">Žiadne zodpovedajúce zápasy</div>';
-                return;
-            }
-
-            let html = '<div class="league-group"><div class="league-header"><i class="fa-solid fa-trophy"></i> ZÁPASY</div>';
-            filtered.forEach(m => {
-                const isLive = m.status === 'LIVE';
-                html += `
-                    <div class="match-row" onclick="openDetail('${m.id}')">
-                        <div class="match-status ${isLive ? 'live' : ''}">${isLive ? m.time + "'" : m.status}</div>
-                        <div class="teams">
-                            <div>${m.teamHome}</div>
-                            <div>${m.teamAway}</div>
+            for (let id in matches) {
+                const m = matches[id];
+                const row = document.createElement('div');
+                row.className = 'match-row';
+                row.onclick = () => openDetail(m);
+                
+                row.innerHTML = `
+                    <div style="display: flex; gap: 15px; align-items: center;">
+                        <div class="match-time">${m.status === 'LIVE' ? `<span style="color:var(--primary-red)">${m.time}'</span>` : m.status}</div>
+                        <div class="team-info">
+                            <span>${m.teamHome}</span>
+                            <span>${m.teamAway}</span>
                         </div>
-                        <div class="score">
-                            <div>${m.scoreHome}</div>
-                            <div>${m.scoreAway}</div>
-                        </div>
-                        <div style="text-align:right; color:var(--text-muted);"><i class="fa-solid fa-chevron-right"></i></div>
+                    </div>
+                    <div class="score-info">
+                        <span style="color: ${m.status === 'LIVE' ? 'var(--primary-red)' : '#000'}">${m.scoreHome}</span>
+                        <span style="color: ${m.status === 'LIVE' ? 'var(--primary-red)' : '#000'}">${m.scoreAway}</span>
                     </div>
                 `;
-            });
-            html += '</div>';
-            container.innerHTML = html;
-        }
+                container.appendChild(row);
+            }
+        });
 
-        function openDetail(id) {
-            const m = allMatches[id];
-            if (!m) return;
-            document.getElementById('modal-teams').innerText = `${m.teamHome} ${m.scoreHome} - ${m.scoreAway} ${m.teamAway}`;
+        // 2. DETAIL ZÁPASU
+        function openDetail(match) {
+            document.getElementById('match-detail').style.display = 'block';
+            document.getElementById('det-home').innerText = match.teamHome;
+            document.getElementById('det-away').innerText = match.teamAway;
+            document.getElementById('det-score').innerText = `${match.scoreHome} : ${match.scoreAway}`;
             
-            const timeline = document.getElementById('modal-timeline');
-            timeline.innerHTML = '';
-            
-            if (m.events && Array.isArray(m.events)) {
-                m.events.forEach(ev => {
-                    timeline.innerHTML += `<div class="timeline-item"><span><strong>${ev.time}'</strong> ${ev.text}</span> <span style="color:var(--text-muted);">${ev.type}</span></div>`;
+            const evContainer = document.getElementById('det-events');
+            evContainer.innerHTML = '';
+            if(match.events && match.events.length > 0) {
+                match.events.forEach(ev => {
+                    evContainer.innerHTML += `<div class="event-item"><strong>${ev.time}'</strong> - ${ev.text}</div>`;
                 });
             } else {
-                timeline.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:15px;">Zatiaľ žiadne záznamy udalosťou</div>';
-            }
-
-            document.getElementById('detail-modal').style.display = 'flex';
-        }
-
-        function closeModal() { document.getElementById('detail-modal').style.display = 'none'; }
-
-        function toggleAudio() {
-            audioActive = !audioActive;
-            const btn = document.getElementById('listen-btn');
-            if (audioActive) {
-                btn.innerHTML = '<i class="fa-solid fa-pause"></i> PAUZA';
-                btn.style.background = '#444';
-            } else {
-                btn.innerHTML = '<i class="fa-solid fa-volume-high"></i> POČÚVAŤ';
-                btn.style.background = 'var(--accent-red)';
+                evContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">Žiadne udalosti</div>';
             }
         }
+        function closeDetail() {
+            document.getElementById('match-detail').style.display = 'none';
+        }
 
-        function playLocalSFX(type) {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-
-            if (type === 'goal') {
-                osc.frequency.setValueAtTime(300, ctx.currentTime);
-                gain.gain.setValueAtTime(0.3, ctx.currentTime);
-                osc.start();
-                osc.stop(ctx.currentTime + 1.2);
-            } else if (type === 'whistle') {
-                osc.frequency.setValueAtTime(1800, ctx.currentTime);
-                gain.gain.setValueAtTime(0.2, ctx.currentTime);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.4);
+        // 3. PRIJÍMANIE ZVUKU (PEER.JS WEBRTC) - TOTO RIEŠI MIKROFÓN
+        // Akonáhle používateľ ťukne na obrazovku, pripojíme ho (prehliadače blokujú zvuk kým neklikneš)
+        let peerConnected = false;
+        document.body.addEventListener('click', () => {
+            if(!peerConnected) {
+                initAudioReceiver();
+                peerConnected = true;
             }
+        }, {once: true});
+
+        function initAudioReceiver() {
+            const peer = new Peer(); // Vytvorí klienta
+            peer.on('open', () => {
+                // Zavoláme fixné ID admina
+                const call = peer.call('scorly-admin-studio', null); 
+                call.on('stream', remoteStream => {
+                    const audioEl = document.getElementById('live-audio');
+                    audioEl.srcObject = remoteStream;
+                    document.getElementById('audio-status').style.display = 'block';
+                });
+                call.on('close', () => {
+                    document.getElementById('audio-status').style.display = 'none';
+                });
+            });
         }
     </script>
 </body>
