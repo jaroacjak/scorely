@@ -31,6 +31,9 @@
         .date-item { padding: 0 15px; text-align: center; font-size: 12px; color: #666; font-weight: bold; cursor: pointer; }
         .date-item.active { color: var(--primary-red); border-bottom: 2px solid var(--primary-red); padding-bottom: 5px; }
 
+        .top-tools { background: white; border-bottom: 1px solid var(--border-color); padding: 10px 15px; display: flex; gap: 10px; }
+        .search-input { flex: 1; background: var(--bg-light); border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 4px; font-size: 14px; outline: none; }
+
         .banner { background: #007aff; color: white; text-align: center; padding: 10px; font-size: 14px; font-weight: bold; display: flex; justify-content: center; align-items: center; gap: 10px; }
         .banner button { background: #ff9900; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; }
 
@@ -55,7 +58,7 @@
         .tab.active { color: var(--primary-red); border-bottom: 3px solid var(--primary-red); }
 
         .events-list { padding: 15px; background: white; }
-        .event-item { padding: 10px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+        .event-item { padding: 10px 0; border-bottom: 1px solid #eee; font-size: 14px; display: flex; justify-content: space-between; }
 
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; padding: 10px 0; z-index: 100; }
         .nav-item { display: flex; flex-direction: column; align-items: center; font-size: 11px; color: #666; text-decoration: none; cursor: pointer; gap: 4px; }
@@ -70,7 +73,7 @@
     <header class="top-header">
         <div class="left">
             <i class="fa-solid fa-bars"></i>
-            <span><i class="fa-solid fa-hockey-puck"></i> Hokej <i class="fa-solid fa-caret-down"></i></span>
+            <span><i class="fa-solid fa-hockey-puck"></i> SCORLY <i class="fa-solid fa-caret-down"></i></span>
         </div>
         <div class="right">
             <i class="fa-solid fa-gift"></i>
@@ -87,6 +90,10 @@
         <div class="date-item">UT<br>10.11.</div>
         <div class="date-item">ST<br>11.11.</div>
         <div class="date-item">ŠT<br>12.11.</div>
+    </div>
+
+    <div class="top-tools">
+        <input type="text" id="search" class="search-input" placeholder="Hľadať tím alebo súťaž..." oninput="renderMatches()">
     </div>
 
     <div class="banner">
@@ -107,7 +114,7 @@
     <div id="match-detail">
         <div class="detail-header">
             <i class="fa-solid fa-arrow-left" onclick="closeDetail()" style="font-size: 20px; cursor: pointer;"></i>
-            <span><i class="fa-solid fa-hockey-puck"></i> Hokej</span>
+            <span><i class="fa-solid fa-hockey-puck"></i> Detail Zápasu</span>
             <div style="display:flex; gap:15px;">
                 <i class="fa-solid fa-share-nodes"></i>
                 <i class="fa-regular fa-bell"></i>
@@ -155,13 +162,33 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        let allMatches = {};
+
         db.ref('matches').on('value', snap => {
-            const matches = snap.val() || {};
+            allMatches = snap.val() || {};
+            renderMatches();
+        });
+
+        // Prijímanie zvukových efektov od admina
+        db.ref('broadcast').on('value', snap => {
+            const data = snap.val() || {};
+            if(data.sfx) {
+                playLocalSFX(data.sfx.type);
+            }
+        });
+
+        function renderMatches() {
             const container = document.getElementById('matches-container');
+            const search = document.getElementById('search').value.toLowerCase();
             container.innerHTML = '<div class="category-header">OBLÚBENÉ SÚŤAŽE / DNES</div>';
 
-            for (let id in matches) {
-                const m = matches[id];
+            let count = 0;
+            for (let id in allMatches) {
+                const m = allMatches[id];
+                const matchName = `${m.teamHome} ${m.teamAway}`.toLowerCase();
+                if(search && !matchName.includes(search)) continue;
+
+                count++;
                 const row = document.createElement('div');
                 row.className = 'match-row';
                 row.onclick = () => openDetail(m);
@@ -182,7 +209,11 @@
                 `;
                 container.appendChild(row);
             }
-        });
+
+            if(count === 0) {
+                container.innerHTML += '<div style="text-align:center; padding:30px; color:#666;">Žiadne zápasy</div>';
+            }
+        }
 
         function openDetail(match) {
             document.getElementById('match-detail').style.display = 'block';
@@ -195,7 +226,7 @@
             evContainer.innerHTML = '';
             if(match.events && match.events.length > 0) {
                 match.events.forEach(ev => {
-                    evContainer.innerHTML += `<div class="event-item"><strong>${ev.time}'</strong> - ${ev.text}</div>`;
+                    evContainer.innerHTML += `<div class="event-item"><span><strong>${ev.time}'</strong> - ${ev.text}</span> <span style="color:#888;">${ev.type || ''}</span></div>`;
                 });
             } else {
                 evContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">Žiadne udalosti</div>';
@@ -203,6 +234,7 @@
         }
         function closeDetail() { document.getElementById('match-detail').style.display = 'none'; }
 
+        // Audio prijímanie cez PeerJS
         let peerConnected = false;
         document.body.addEventListener('click', () => {
             if(!peerConnected) {
@@ -224,6 +256,26 @@
                     document.getElementById('audio-status').style.display = 'none';
                 });
             });
+        }
+
+        function playLocalSFX(type) {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            if (type === 'goal') {
+                osc.frequency.setValueAtTime(300, ctx.currentTime);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                osc.start();
+                osc.stop(ctx.currentTime + 1.2);
+            } else if (type === 'whistle') {
+                osc.frequency.setValueAtTime(1800, ctx.currentTime);
+                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.4);
+            }
         }
     </script>
 </body>
