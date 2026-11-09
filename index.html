@@ -3,34 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scorly - Živé Výsledky & Audio Komentár</title>
+    <title>Scorly - Flashscore Štýl Živé Výsledky</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
         :root {
-            --bg-body: #111418;
-            --bg-card: #1c2127;
-            --bg-header: #0d0f12;
+            --bg-body: #0e1114;
+            --bg-card: #181c22;
+            --bg-header: #090b0d;
             --accent-red: #e00000;
-            --accent-live: #00e676;
+            --accent-green: #00e676;
             --text-main: #f0f2f5;
             --text-muted: #8c9ba5;
-            --border-color: #2a313a;
+            --border-color: #262c36;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        body {
-            background-color: var(--bg-body);
-            color: var(--text-main);
-            padding-bottom: 80px;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+        body { background-color: var(--bg-body); color: var(--text-main); padding-bottom: 90px; }
 
         header {
             background-color: var(--bg-header);
@@ -39,201 +29,103 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
+            position: sticky; top: 0; z-index: 100;
         }
 
-        .logo {
-            font-size: 24px;
-            font-weight: 900;
-            letter-spacing: -0.5px;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
+        .logo { font-size: 24px; font-weight: 900; color: #fff; letter-spacing: -0.5px; }
         .logo span { color: var(--accent-red); }
 
         .admin-link {
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            background: var(--bg-card);
-            border-radius: 4px;
-            border: 1px solid var(--border-color);
+            color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 600;
+            padding: 6px 14px; background: var(--bg-card); border-radius: 4px; border: 1px solid var(--border-color);
+        }
+        .admin-link:hover { color: #fff; border-color: var(--accent-red); }
+
+        .top-tools { background: var(--bg-card); border-bottom: 1px solid var(--border-color); padding: 10px 15px; display: flex; gap: 10px; }
+        .search-input {
+            flex: 1; background: #101419; border: 1px solid var(--border-color); padding: 8px 12px;
+            border-radius: 4px; color: #fff; font-size: 14px; outline: none;
         }
 
-        .admin-link:hover {
-            color: #fff;
-            border-color: var(--accent-red);
-        }
-
-        .nav-categories {
-            background: var(--bg-card);
-            display: flex;
-            overflow-x: auto;
-            border-bottom: 1px solid var(--border-color);
-            padding: 0 10px;
-        }
-
+        .nav-categories { background: var(--bg-card); display: flex; border-bottom: 1px solid var(--border-color); overflow-x: auto; }
         .cat-btn {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            padding: 12px 16px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            white-space: nowrap;
-            border-bottom: 3px solid transparent;
+            background: none; border: none; color: var(--text-muted); padding: 12px 20px; font-size: 13px; font-weight: 700;
+            cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap;
         }
-
-        .cat-btn.active {
-            color: #fff;
-            border-bottom-color: var(--accent-red);
-        }
+        .cat-btn.active { color: #fff; border-bottom-color: var(--accent-red); }
 
         .live-player-bar {
             background: linear-gradient(90deg, #1f1214 0%, #161a22 100%);
-            border: 1px solid var(--accent-red);
-            margin: 15px auto;
-            max-width: 800px;
-            padding: 12px 20px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            border: 1px solid var(--accent-red); margin: 15px auto; max-width: 800px; padding: 12px 20px;
+            border-radius: 8px; display: flex; align-items: center; justify-content: space-between;
         }
+        .live-dot { width: 10px; height: 10px; background-color: var(--accent-green); border-radius: 50%; box-shadow: 0 0 8px var(--accent-green); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
-        .player-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .live-dot {
-            width: 10px;
-            height: 10px;
-            background-color: var(--accent-live);
-            border-radius: 50%;
-            box-shadow: 0 0 8px var(--accent-live);
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(1.2); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 15px;
-        }
-
-        .league-group {
-            background: var(--bg-card);
-            border-radius: 6px;
-            border: 1px solid var(--border-color);
-            margin-bottom: 15px;
-            overflow: hidden;
-        }
-
-        .league-header {
-            background: rgba(255,255,255,0.03);
-            padding: 10px 15px;
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
+        .container { max-width: 800px; margin: 0 auto; padding: 15px; }
+        .league-group { background: var(--bg-card); border-radius: 6px; border: 1px solid var(--border-color); margin-bottom: 15px; overflow: hidden; }
+        .league-header { background: rgba(255,255,255,0.03); padding: 10px 15px; font-size: 13px; font-weight: 700; color: var(--text-muted); border-bottom: 1px solid var(--border-color); }
+        
         .match-row {
-            display: grid;
-            grid-template-columns: 70px 1fr 60px;
-            padding: 12px 15px;
-            border-bottom: 1px solid var(--border-color);
-            align-items: center;
+            display: grid; grid-template-columns: 60px 1fr 50px 30px; padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color); align-items: center; cursor: pointer;
         }
+        .match-row:hover { background: rgba(255,255,255,0.02); }
+        .match-status { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+        .match-status.live { color: var(--accent-green); }
+        .teams { display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 600; }
+        .score { font-size: 15px; font-weight: 800; text-align: right; display: flex; flex-direction: column; gap: 4px; }
 
-        .match-row:last-child { border-bottom: none; }
-
-        .match-status {
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--text-muted);
-        }
-
-        .match-status.live {
-            color: var(--accent-live);
-        }
-
-        .teams {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .team {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .score {
-            font-size: 16px;
-            font-weight: 800;
-            text-align: right;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
+        /* Detail Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 200; align-items: center; justify-content: center; }
+        .modal-card { background: var(--bg-card); width: 90%; max-width: 550px; border-radius: 8px; border: 1px solid var(--border-color); padding: 20px; position: relative; }
+        .timeline-item { padding: 8px 0; border-bottom: 1px dashed var(--border-color); font-size: 13px; display: flex; justify-content: space-between; }
     </style>
 </head>
 <body>
 
     <header>
         <div class="logo"><i class="fa-solid fa-bolt"></i> SCOR<span>LY</span></div>
-        <a href="admin.html" class="admin-link"><i class="fa-solid fa-lock"></i> Admin Rozhranie</a>
+        <a href="admin.html" class="admin-link"><i class="fa-solid fa-lock"></i> Admin Panel</a>
     </header>
 
+    <div class="top-tools">
+        <input type="text" id="search" class="search-input" placeholder="Hľadať tím alebo ligu..." oninput="filterMatches()">
+    </div>
+
     <div class="nav-categories">
-        <button class="cat-btn active">VŠETKO</button>
-        <button class="cat-btn">ŽIVÉ</button>
-        <button class="cat-btn">FUTBAL</button>
-        <button class="cat-btn">HOKEJ</button>
+        <button class="cat-btn active" onclick="setCategory('ALL', this)">VŠETKO</button>
+        <button class="cat-btn" onclick="setCategory('LIVE', this)">ŽIVÉ</button>
+        <button class="cat-btn" onclick="setCategory('FUTBAL', this)">FUTBAL</button>
+        <button class="cat-btn" onclick="setCategory('HOKEJ', this)">HOKEJ</button>
+        <button class="cat-btn" onclick="setCategory('TENIS', this)">TENIS</button>
     </div>
 
     <div class="container">
         <div class="live-player-bar">
-            <div class="player-info">
+            <div style="display:flex; align-items:center; gap:12px;">
                 <div class="live-dot"></div>
                 <div>
-                    <div style="font-size:12px; color:var(--text-muted);">ŽIVÝ AUDIO KOMENTÁR</div>
-                    <div id="broadcast-status-text" style="font-size:14px; font-weight:700;">Vysielanie je pripravené</div>
+                    <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase;">RÁDIO STAV</div>
+                    <div id="broadcast-text" style="font-size:14px; font-weight:700;">Vysielanie neprenáša</div>
                 </div>
             </div>
-            <button onclick="toggleAudio()" id="audio-toggle-btn" style="background:var(--accent-red); border:none; color:#fff; padding:8px 16px; border-radius:4px; font-weight:700; cursor:pointer;">
+            <button id="listen-btn" onclick="toggleAudio()" style="background:var(--accent-red); border:none; color:#fff; padding:8px 16px; border-radius:4px; font-weight:700; cursor:pointer;">
                 <i class="fa-solid fa-volume-high"></i> POČÚVAŤ
             </button>
         </div>
 
-        <div id="matches-container">
-            <div style="text-align:center; padding:30px; color:var(--text-muted);">Načítavam zápasy...</div>
+        <div id="matches-list">
+            <div style="text-align:center; padding:30px; color:var(--text-muted);">Načítavam zápasy z databázy...</div>
+        </div>
+    </div>
+
+    <!-- Match Detail Modal -->
+    <div id="detail-modal" class="modal">
+        <div class="modal-card">
+            <button onclick="closeModal()" style="position:absolute; right:15px; top:15px; background:none; border:none; color:#fff; font-size:18px; cursor:pointer;">&times;</button>
+            <h3 id="modal-teams" style="margin-bottom:15px;"> Detail Zápasu</h3>
+            <div id="modal-timeline"></div>
         </div>
     </div>
 
@@ -252,69 +144,136 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let audioContext = null;
-        let isPlaying = false;
+        let allMatches = {};
+        let activeCategory = 'ALL';
+        let audioActive = false;
 
-        db.ref('broadcast').on('value', (snapshot) => {
-            const data = snapshot.val() || {};
-            const statusText = document.getElementById('broadcast-status-text');
-            
+        db.ref('broadcast').on('value', snap => {
+            const data = snap.val() || {};
+            const text = document.getElementById('broadcast-text');
             if (data.mode === 'mic') {
-                statusText.innerText = "Živý komentár (Komentátor hovorí)";
-                statusText.style.color = "#00e676";
+                text.innerText = "Živý Komentár (Mikrofón ZAP)"; text.style.color = "#00e676";
             } else if (data.mode === 'music') {
-                statusText.innerText = "Reklama / Hudobná prestávka";
-                statusText.style.color = "#ffb300";
+                text.innerText = "Reklama / Hudobná Prestávka"; text.style.color = "#ffb300";
             } else {
-                statusText.innerText = "Vysielanie je pozastavené";
-                statusText.style.color = "#8c9ba5";
+                text.innerText = "Vysielanie je pozastavené"; text.style.color = "#8c9ba5";
+            }
+
+            if (audioActive && data.sfx) {
+                playLocalSFX(data.sfx.type);
             }
         });
 
-        db.ref('matches').on('value', (snapshot) => {
-            const matches = snapshot.val() || {};
-            const container = document.getElementById('matches-container');
+        db.ref('matches').on('value', snap => {
+            allMatches = snap.val() || {};
+            renderMatches();
+        });
+
+        function setCategory(cat, btn) {
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeCategory = cat;
+            renderMatches();
+        }
+
+        function filterMatches() { renderMatches(); }
+
+        function renderMatches() {
+            const container = document.getElementById('matches-list');
+            const search = document.getElementById('search').value.toLowerCase();
             container.innerHTML = '';
 
-            if (Object.keys(matches).length === 0) {
-                container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted);">Žiadne aktívne zápasy</div>';
+            let filtered = [];
+            for (let id in allMatches) {
+                let m = allMatches[id];
+                m.id = id;
+                const matchCat = (m.sport || 'FUTBAL').toUpperCase();
+                const matchName = `${m.teamHome} ${m.teamAway} ${m.league || ''}`.toLowerCase();
+
+                if (activeCategory === 'LIVE' && m.status !== 'LIVE') continue;
+                if (activeCategory !== 'ALL' && activeCategory !== 'LIVE' && matchCat !== activeCategory) continue;
+                if (search && !matchName.includes(search)) continue;
+
+                filtered.push(m);
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted);">Žiadne zodpovedajúce zápasy</div>';
                 return;
             }
 
-            let html = '<div class="league-group"><div class="league-header"><i class="fa-solid fa-trophy"></i> Aktuálne Zápasy</div>';
-            
-            for (let id in matches) {
-                const m = matches[id];
+            let html = '<div class="league-group"><div class="league-header"><i class="fa-solid fa-trophy"></i> ZÁPASY</div>';
+            filtered.forEach(m => {
                 const isLive = m.status === 'LIVE';
-                
                 html += `
-                    <div class="match-row">
+                    <div class="match-row" onclick="openDetail('${m.id}')">
                         <div class="match-status ${isLive ? 'live' : ''}">${isLive ? m.time + "'" : m.status}</div>
                         <div class="teams">
-                            <div class="team">${m.teamHome}</div>
-                            <div class="team">${m.teamAway}</div>
+                            <div>${m.teamHome}</div>
+                            <div>${m.teamAway}</div>
                         </div>
                         <div class="score">
                             <div>${m.scoreHome}</div>
                             <div>${m.scoreAway}</div>
                         </div>
+                        <div style="text-align:right; color:var(--text-muted);"><i class="fa-solid fa-chevron-right"></i></div>
                     </div>
                 `;
-            }
-
+            });
             html += '</div>';
             container.innerHTML = html;
-        });
+        }
+
+        function openDetail(id) {
+            const m = allMatches[id];
+            if (!m) return;
+            document.getElementById('modal-teams').innerText = `${m.teamHome} ${m.scoreHome} - ${m.scoreAway} ${m.teamAway}`;
+            
+            const timeline = document.getElementById('modal-timeline');
+            timeline.innerHTML = '';
+            
+            if (m.events && Array.isArray(m.events)) {
+                m.events.forEach(ev => {
+                    timeline.innerHTML += `<div class="timeline-item"><span><strong>${ev.time}'</strong> ${ev.text}</span> <span style="color:var(--text-muted);">${ev.type}</span></div>`;
+                });
+            } else {
+                timeline.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:15px;">Zatiaľ žiadne záznamy udalosťou</div>';
+            }
+
+            document.getElementById('detail-modal').style.display = 'flex';
+        }
+
+        function closeModal() { document.getElementById('detail-modal').style.display = 'none'; }
 
         function toggleAudio() {
-            const btn = document.getElementById('audio-toggle-btn');
-            isPlaying = !isPlaying;
-            if (isPlaying) {
+            audioActive = !audioActive;
+            const btn = document.getElementById('listen-btn');
+            if (audioActive) {
                 btn.innerHTML = '<i class="fa-solid fa-pause"></i> PAUZA';
                 btn.style.background = '#444';
             } else {
                 btn.innerHTML = '<i class="fa-solid fa-volume-high"></i> POČÚVAŤ';
                 btn.style.background = 'var(--accent-red)';
+            }
+        }
+
+        function playLocalSFX(type) {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            if (type === 'goal') {
+                osc.frequency.setValueAtTime(300, ctx.currentTime);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                osc.start();
+                osc.stop(ctx.currentTime + 1.2);
+            } else if (type === 'whistle') {
+                osc.frequency.setValueAtTime(1800, ctx.currentTime);
+                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.4);
             }
         }
     </script>
