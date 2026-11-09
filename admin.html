@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scorly Admin - Štúdio & Správa Zápasov</title>
+    <title>Scorly Admin Štúdio</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -12,7 +12,8 @@
             --bg-body: #0d0f12;
             --bg-card: #1c2127;
             --accent-red: #e00000;
-            --accent-live: #00e676;
+            --accent-green: #00e676;
+            --accent-yellow: #ffb300;
             --text-main: #f0f2f5;
             --text-muted: #8c9ba5;
             --border-color: #2a313a;
@@ -20,89 +21,92 @@
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
         body { background-color: var(--bg-body); color: var(--text-main); padding: 20px; }
-        
+
         .admin-box { max-width: 900px; margin: 0 auto; }
         .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
-        h2 { font-size: 18px; margin-bottom: 15px; color: #fff; display: flex; align-items: center; gap: 8px; }
+        h2 { font-size: 16px; margin-bottom: 15px; color: #fff; display: flex; align-items: center; gap: 8px; }
 
         #login-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--bg-body); z-index: 1000;
-            display: flex; align-items: center; justify-content: center;
+            background: var(--bg-body); z-index: 1000; display: flex; align-items: center; justify-content: center;
         }
+        .login-card { background: var(--bg-card); padding: 30px; border-radius: 8px; border: 1px solid var(--border-color); width: 320px; text-align: center; }
 
-        .login-card {
-            background: var(--bg-card); padding: 30px; border-radius: 8px;
-            border: 1px solid var(--border-color); width: 320px; text-align: center;
-        }
-
-        input, button {
-            width: 100%; padding: 10px; margin-top: 10px;
-            border-radius: 4px; border: 1px solid var(--border-color);
-            background: #111418; color: #fff;
+        input, select, button {
+            width: 100%; padding: 10px; margin-top: 8px;
+            border-radius: 4px; border: 1px solid var(--border-color); background: #111418; color: #fff; outline: none;
         }
 
         button { background: var(--accent-red); border: none; font-weight: bold; cursor: pointer; }
         button:hover { opacity: 0.9; }
 
-        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
-        .btn-live { background: var(--accent-live); color: #000; }
-        .btn-warning { background: #ffb300; color: #000; }
+        .btn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+        .btn-green { background: var(--accent-green); color: #000; }
+        .btn-yellow { background: var(--accent-yellow); color: #000; }
+        .btn-dark { background: #333; }
 
-        .match-item {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 10px; border-bottom: 1px solid var(--border-color);
-        }
-        .score-ctrls button { width: auto; padding: 4px 10px; margin: 0 2px; }
+        .match-row-admin { background: #111418; border: 1px solid var(--border-color); border-radius: 6px; padding: 15px; margin-bottom: 10px; }
+        .ctrl-group { display: flex; gap: 6px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+        .ctrl-group button { width: auto; padding: 6px 12px; margin: 0; }
+        .sm-input { width: 70px !important; display: inline-block; padding: 5px; }
     </style>
 </head>
 <body>
 
+    <!-- Login -->
     <div id="login-overlay">
         <div class="login-card">
             <h2 style="justify-content: center;"><i class="fa-solid fa-lock"></i> Scorly Admin</h2>
-            <input type="password" id="admin-pass" placeholder="Heslo (admin123)">
-            <button onclick="login()">Prihlásiť sa</button>
-            <div id="login-error" style="color:red; font-size:12px; margin-top:8px;"></div>
+            <input type="password" id="admin-pass" placeholder="Vlož heslo (admin123)">
+            <button onclick="login()">PRIHLÁSIŤ SA</button>
+            <div id="login-error" style="color:red; font-size:12px; margin-top:10px;"></div>
         </div>
     </div>
 
+    <!-- Admin Body -->
     <div class="admin-box">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h1>Administrátorské Štúdio</h1>
-            <a href="index.html" style="color:var(--text-muted); text-decoration:none;"><i class="fa-solid fa-eye"></i> Späť na web</a>
+            <h1>Vysielacie Štúdio & Správa</h1>
+            <a href="index.html" style="color:var(--text-muted); text-decoration:none;"><i class="fa-solid fa-eye"></i> Prejsť na hlavný web</a>
         </div>
 
+        <!-- Audio Studio -->
         <div class="card">
-            <h2><i class="fa-solid fa-microphone"></i> Audio Komentár & Reklamy</h2>
-            <div class="controls-grid">
-                <button onclick="setBroadcastMode('mic')" class="btn-live"><i class="fa-solid fa-microphone"></i> Zapnúť Mikrofón</button>
-                <button onclick="setBroadcastMode('music')" class="btn-warning"><i class="fa-solid fa-music"></i> Pustiť Reklamu / Hudbu</button>
-                <button onclick="setBroadcastMode('off')" style="background:#444;"><i class="fa-solid fa-power-off"></i> Vypnúť Vysielanie</button>
+            <h2><i class="fa-solid fa-microphone"></i> Audio Vysielanie & Reklama</h2>
+            <div class="btn-grid">
+                <button onclick="setBroadcastMode('mic')" class="btn-green"><i class="fa-solid fa-microphone"></i> Mikrofón (Živo)</button>
+                <button onclick="setBroadcastMode('music')" class="btn-yellow"><i class="fa-solid fa-music"></i> Reklama / Hudba</button>
+                <button onclick="setBroadcastMode('off')" class="btn-dark"><i class="fa-solid fa-power-off"></i> Vypnúť Audio</button>
             </div>
-            <div style="margin-top:15px;">
-                <label style="font-size:12px; color:var(--text-muted);">Zvukové efekty:</label>
-                <div style="display:flex; gap:10px; margin-top:5px;">
-                    <button onclick="triggerSFX('goal')" style="background:#222;"><i class="fa-solid fa-bullhorn"></i> Klaksón (Gól)</button>
-                    <button onclick="triggerSFX('whistle')" style="background:#222;"><i class="fa-solid fa-volume-high"></i> Píšťalka</button>
+            
+            <div style="margin-top:15px; border-top:1px solid var(--border-color); padding-top:12px;">
+                <label style="font-size:12px; color:var(--text-muted);">Odoslať Štadiónový Zvukový Efekt:</label>
+                <div style="display:flex; gap:8px; margin-top:6px;">
+                    <button onclick="triggerSFX('goal')" class="btn-dark"><i class="fa-solid fa-bullhorn"></i> Gól Klaksón</button>
+                    <button onclick="triggerSFX('whistle')" class="btn-dark"><i class="fa-solid fa-volume-high"></i> Píšťalka</button>
                 </div>
             </div>
         </div>
 
+        <!-- Create Match -->
         <div class="card">
-            <h2><i class="fa-solid fa-plus"></i> Pridať Nový Zápas</h2>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                <input type="text" id="home-name" placeholder="Domáci tím">
-                <input type="text" id="away-name" placeholder="Hostia tím">
+            <h2><i class="fa-solid fa-plus"></i> Nový Zápas</h2>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;">
+                <input type="text" id="new-home" placeholder="Domáci tím">
+                <input type="text" id="new-away" placeholder="Hostia tím">
+                <select id="new-sport">
+                    <option value="FUTBAL">Futbal</option>
+                    <option value="HOKEJ">Hokej</option>
+                    <option value="TENIS">Tenis</option>
+                </select>
             </div>
-            <button onclick="createMatch()" style="margin-top:10px;"><i class="fa-solid fa-plus"></i> Vytvoriť Zápas</button>
+            <button onclick="createMatch()"><i class="fa-solid fa-save"></i> Uložiť nový zápas</button>
         </div>
 
+        <!-- Manage Matches -->
         <div class="card">
-            <h2><i class="fa-solid fa-list-check"></i> Správa Zápasov</h2>
-            <div id="admin-matches-list">
-                <div style="color:var(--text-muted);">Načítavam zápasy...</div>
-            </div>
+            <h2><i class="fa-solid fa-list-check"></i> Správa Zápasov & Udalostí</h2>
+            <div id="matches-list">Načítavam...</div>
         </div>
     </div>
 
@@ -126,79 +130,97 @@
             if (pass === 'admin123') {
                 document.getElementById('login-overlay').style.display = 'none';
             } else {
-                document.getElementById('login-error').innerText = "Nesprávne heslo!";
+                document.getElementById('login-error').innerText = "Chybné heslo! Zadať: admin123";
             }
         }
 
         function setBroadcastMode(mode) {
-            db.ref('broadcast').update({
-                mode: mode,
-                updatedAt: Date.now()
-            });
+            db.ref('broadcast').update({ mode: mode, time: Date.now() });
         }
 
         function triggerSFX(type) {
-            db.ref('broadcast/sfx').set({
-                type: type,
-                time: Date.now()
-            });
+            db.ref('broadcast/sfx').set({ type: type, time: Date.now() });
         }
 
         function createMatch() {
-            const home = document.getElementById('home-name').value;
-            const away = document.getElementById('away-name').value;
+            const home = document.getElementById('new-home').value;
+            const away = document.getElementById('new-away').value;
+            const sport = document.getElementById('new-sport').value;
             if (!home || !away) return;
 
-            const newRef = db.ref('matches').push();
-            newRef.set({
-                teamHome: home,
-                teamAway: away,
-                scoreHome: 0,
-                scoreAway: 0,
-                status: 'LIVE',
-                time: '1'
+            db.ref('matches').push({
+                teamHome: home, teamAway: away, sport: sport,
+                scoreHome: 0, scoreAway: 0, status: 'LIVE', time: '1', events: []
             });
 
-            document.getElementById('home-name').value = '';
-            document.getElementById('away-name').value = '';
+            document.getElementById('new-home').value = '';
+            document.getElementById('new-away').value = '';
         }
 
-        db.ref('matches').on('value', (snapshot) => {
-            const matches = snapshot.val() || {};
-            const container = document.getElementById('admin-matches-list');
+        db.ref('matches').on('value', snap => {
+            const matches = snap.val() || {};
+            const container = document.getElementById('matches-list');
             container.innerHTML = '';
 
             for (let id in matches) {
                 const m = matches[id];
                 container.innerHTML += `
-                    <div class="match-item">
-                        <div>
-                            <strong>${m.teamHome} vs ${m.teamAway}</strong>
-                            <div style="font-size:12px; color:var(--text-muted);">${m.status} | Čas: ${m.time}'</div>
+                    <div class="match-row-admin">
+                        <div style="display:flex; justify-content:space-between;">
+                            <strong>${m.teamHome} vs ${m.teamAway} (${m.sport})</strong>
+                            <button onclick="deleteMatch('${id}')" style="width:auto; padding:3px 8px; background:#aa0000;">Zmazať</button>
                         </div>
-                        <div class="score-ctrls">
-                            <button onclick="updateScore('${id}', 'home', 1)">+1 D</button>
-                            <span>${m.scoreHome} : ${m.scoreAway}</span>
-                            <button onclick="updateScore('${id}', 'away', 1)">+1 H</button>
-                            <button onclick="toggleMatchStatus('${id}', '${m.status}')" style="background:#555;">Stav</button>
+                        <div class="ctrl-group">
+                            <span>Skóre:</span>
+                            <button onclick="adjScore('${id}', 'home', 1)">+1 D</button>
+                            <button onclick="adjScore('${id}', 'home', -1)">-1 D</button>
+                            <strong>${m.scoreHome} : ${m.scoreAway}</strong>
+                            <button onclick="adjScore('${id}', 'away', 1)">+1 H</button>
+                            <button onclick="adjScore('${id}', 'away', -1)">-1 H</button>
+
+                            <span style="margin-left:15px;">Čas:</span>
+                            <input type="text" value="${m.time}" class="sm-input" onchange="updateTime('${id}', this.value)">
+                            
+                            <button onclick="toggleStatus('${id}', '${m.status}')" class="btn-dark">${m.status}</button>
+                        </div>
+
+                        <div style="margin-top:10px; border-top:1px solid #222; padding-top:8px;">
+                            <span style="font-size:12px; color:var(--text-muted);">Pridať Udalosť (Gól / Karta):</span>
+                            <div style="display:flex; gap:5px; margin-top:4px;">
+                                <input type="text" id="ev-txt-${id}" placeholder="napr. Gól: J. Novák" style="margin:0; flex:1;">
+                                <button onclick="addEvent('${id}')" style="width:auto; margin:0;">+ Pridať</button>
+                            </div>
                         </div>
                     </div>
                 `;
             }
         });
 
-        function updateScore(id, team, val) {
+        function adjScore(id, team, delta) {
             const ref = db.ref(`matches/${id}`);
-            ref.once('value', (snap) => {
-                const data = snap.val();
-                if (team === 'home') ref.update({ scoreHome: Math.max(0, data.scoreHome + val) });
-                if (team === 'away') ref.update({ scoreAway: Math.max(0, data.scoreAway + val) });
+            ref.once('value', snap => {
+                const m = snap.val();
+                if (team === 'home') ref.update({ scoreHome: Math.max(0, m.scoreHome + delta) });
+                if (team === 'away') ref.update({ scoreAway: Math.max(0, m.scoreAway + delta) });
             });
         }
 
-        function toggleMatchStatus(id, currentStatus) {
-            const nextStatus = currentStatus === 'LIVE' ? 'KONIEC' : 'LIVE';
-            db.ref(`matches/${id}`).update({ status: nextStatus });
+        function updateTime(id, timeVal) { db.ref(`matches/${id}`).update({ time: timeVal }); }
+        function toggleStatus(id, current) { db.ref(`matches/${id}`).update({ status: current === 'LIVE' ? 'KONIEC' : 'LIVE' }); }
+        function deleteMatch(id) { db.ref(`matches/${id}`).remove(); }
+
+        function addEvent(id) {
+            const txt = document.getElementById(`ev-txt-${id}`).value;
+            if (!txt) return;
+
+            const ref = db.ref(`matches/${id}`);
+            ref.once('value', snap => {
+                const m = snap.val();
+                const events = m.events || [];
+                events.push({ time: m.time || '1', text: txt, type: 'Udalosť' });
+                ref.update({ events: events });
+                document.getElementById(`ev-txt-${id}`).value = '';
+            });
         }
     </script>
 </body>
