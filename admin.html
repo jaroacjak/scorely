@@ -157,7 +157,6 @@
             
             db.ref('broadcast').update({ mode: mode, activeMatch: activeMatchId, updatedAt: Date.now() });
 
-            // Označenie v databáze pre konkrétny zápas, že prebieha komentár
             db.ref('matches').once('value', snap => {
                 const matches = snap.val() || {};
                 for(let id in matches) {
@@ -235,7 +234,6 @@
                 for (let id in matches) {
                     const m = matches[id];
                     
-                    // Naplnenie výberu pre komentár
                     select.innerHTML += `<option value="${id}">${m.date} - ${m.teamHome} vs ${m.teamAway}</option>`;
 
                     container.innerHTML += `
